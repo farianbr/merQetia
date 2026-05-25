@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getMyAssignments } from '../api/orders';
+import { NotificationProvider, useNotifications } from '../context/NotificationContext';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const DashIcon = () => (
@@ -13,6 +13,11 @@ const DashIcon = () => (
 const AssignmentsIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+  </svg>
+);
+const BellIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
   </svg>
 );
 const SettingsIcon = () => (
@@ -28,38 +33,37 @@ const LogoutIcon = () => (
 );
 
 const NAV_ITEMS = [
-  { path: '/employee',         label: 'Dashboard', Icon: DashIcon,        exact: true },
-  { path: '/employee/orders',  label: 'Orders',    Icon: AssignmentsIcon, badge: true },
+  { path: '/employee',         label: 'Dashboard', Icon: DashIcon,    exact: true },
+  { path: '/employee/orders',  label: 'Orders',    Icon: AssignmentsIcon },
 ];
 
-export default function EmployeeLayout({ children }) {
+function fmtNotifTime(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function EmployeeLayoutInner({ children }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
 
-  const [pendingCount, setPendingCount] = useState(0);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
   const userMenuRef = useRef(null);
-
-  // Load pending assignment count
-  useEffect(() => {
-    const load = () =>
-      getMyAssignments()
-        .then((r) => {
-          const list = r.data.orders || r.data;
-          setPendingCount(list.filter((o) => o.status === 'assigned').length);
-        })
-        .catch(() => {});
-    load();
-    const id = setInterval(load, 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Close user menu on outside click
+  const bellRef = useRef(null);
+  // Close menus on outside click
   useEffect(() => {
     const handler = (e) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target))
         setUserMenuOpen(false);
+      if (bellRef.current && !bellRef.current.contains(e.target))
+        setBellOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -69,6 +73,20 @@ export default function EmployeeLayout({ children }) {
 
   const isActive = (item) =>
     item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
+
+  const handleBellClick = () => {
+    setBellOpen((v) => {
+      const next = !v;
+      if (!next && unreadCount > 0) markAllRead();
+      return next;
+    });
+  };
+
+  const handleNotifClick = (notif) => {
+    markRead(notif._id);
+    setBellOpen(false);
+    navigate('/employee/orders', { state: { orderId: notif.orderId } });
+  };
 
   const initials = user?.name
     ? user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
@@ -95,9 +113,6 @@ export default function EmployeeLayout({ children }) {
               >
                 <NavIcon />
                 <span>{item.label}</span>
-                {item.badge && pendingCount > 0 && (
-                  <span className="cl-nav-badge">{pendingCount > 9 ? '9+' : pendingCount}</span>
-                )}
               </Link>
             );
           })}
@@ -122,6 +137,56 @@ export default function EmployeeLayout({ children }) {
       <div className="cl-main">
         <header className="cl-topbar">
           <div className="cl-topbar-right">
+            {/* Bell with notification dropdown */}
+            <div className="cl-notif-wrap" ref={bellRef}>
+              <button className="cl-icon-btn" aria-label="Notifications" onClick={handleBellClick}>
+                <BellIcon />
+                {unreadCount > 0 && (
+                  <span className="cl-notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                )}
+              </button>
+              {bellOpen && (
+                <div className="cl-notif-dropdown">
+                  <div className="cl-notif-header">
+                    <span className="cl-notif-title">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button className="cl-notif-mark-all" onClick={markAllRead}>Mark all read</button>
+                    )}
+                  </div>
+                  <div className="cl-notif-list">
+                    {notifications.length === 0 ? (
+                      <p className="cl-notif-empty">No notifications yet.</p>
+                    ) : (
+                      notifications.slice(0, 3).map((n) => (
+                        <div
+                          key={n._id}
+                          className={`cl-notif-item ${n.read ? '' : 'cl-notif-item--unread'}`}
+                          onClick={() => handleNotifClick(n)}
+                        >
+                          <div className="cl-notif-item-top">
+                            <span className="cl-notif-item-title">{n.title}</span>
+                            <span className="cl-notif-item-time">{fmtNotifTime(n.createdAt)}</span>
+                          </div>
+                          <span className="cl-notif-item-body">{n.typeLabel || n.body}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  {notifications.length > 0 && (
+                    <div className="cl-notif-footer">
+                      <Link
+                        to="/employee/notifications"
+                        className="cl-notif-see-all"
+                        onClick={() => setBellOpen(false)}
+                      >
+                        See all notifications →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="cl-user-menu-wrap" ref={userMenuRef}>
               <button
                 className="cl-avatar"
@@ -150,3 +215,12 @@ export default function EmployeeLayout({ children }) {
     </div>
   );
 }
+
+export default function EmployeeLayout({ children }) {
+  return (
+    <NotificationProvider>
+      <EmployeeLayoutInner>{children}</EmployeeLayoutInner>
+    </NotificationProvider>
+  );
+}
+

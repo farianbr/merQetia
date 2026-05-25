@@ -191,6 +191,7 @@ const assignEmployee = async (orderId, employeeId) => {
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
   pushNotification(order.clientId, order._id, orderNum, 'status', 'Status Update', STATUS_LABEL.assigned);
+  pushNotification(employeeId, order._id, orderNum, 'status', 'New Order Request', 'A new order has been assigned to you');
 
   return order.populate(POPULATE_ORDER);
 };

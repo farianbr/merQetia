@@ -32,6 +32,7 @@ import AdminEmployees from './pages/admin/Employees';
 import EmployeeDashboard from './pages/employee/Dashboard';
 import EmployeeOrders from './pages/employee/Orders';
 import EmployeeSettings from './pages/employee/Settings';
+import EmployeeNotifications from './pages/employee/Notifications';
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -71,6 +72,7 @@ function AppRoutes() {
       {/* ── Employee ── */}
       <Route path="/employee"                element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeDashboard /></EmployeeLayout></ProtectedRoute>} />
       <Route path="/employee/orders"         element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeOrders /></EmployeeLayout></ProtectedRoute>} />
+      <Route path="/employee/notifications"   element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeNotifications /></EmployeeLayout></ProtectedRoute>} />
 
       <Route path="/employee/settings"       element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeSettings /></EmployeeLayout></ProtectedRoute>} />
 

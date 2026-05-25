@@ -25,7 +25,7 @@ const STATUS_COLORS = {
 const STATUS_LABEL = {
   placed: 'Pending',
   assigned: 'Assigned',
-  accepted: 'Processing',
+  accepted: 'In Progress',
   rejected: 'Rejected',
   completed: 'Completed',
 };
@@ -40,6 +40,7 @@ export default function ClientOrders() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [error, setError] = useState('');
   const [lightbox, setLightbox] = useState(null);
+  const [mediaModal, setMediaModal] = useState(false);
   const chatBottomRef = useRef(null);
   const activeOrderRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -153,43 +154,49 @@ export default function ClientOrders() {
         {/* ── Right: detail + conversation ── */}
         {activeOrder ? (
           <div className="co-detail">
-            {/* Header */}
-            <div className="co-detail-header">
-              <div>
-                <h2 className="co-detail-id">Order #{activeOrder._id.slice(-6).toUpperCase()}</h2>
-                <span
-                  className="co-detail-status"
-                  style={{ background: STATUS_COLORS[activeOrder.status] + '22', color: STATUS_COLORS[activeOrder.status] }}
-                >
-                  {STATUS_LABEL[activeOrder.status]}
-                </span>
+            {/* Header + Meta — unified card */}
+            <div className="co-detail-header co-detail-header--shaded">
+              <div className="co-detail-header-row">
+                <div>
+                  <h2 className="co-detail-id">Order #{activeOrder._id.slice(-6).toUpperCase()}</h2>
+                  <span
+                    className="co-detail-status"
+                    style={{ background: STATUS_COLORS[activeOrder.status] + '22', color: STATUS_COLORS[activeOrder.status] }}
+                  >
+                    {STATUS_LABEL[activeOrder.status]}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
+                  <button className="co-dp-media-btn co-dp-media-btn--sm" onClick={() => setMediaModal(true)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    View All Media
+                  </button>
+                  <button className="co-close-btn" onClick={() => setActiveOrder(null)}>✕</button>
+                </div>
               </div>
-              <button className="co-close-btn" onClick={() => setActiveOrder(null)}>✕</button>
-            </div>
-
-            {/* Meta rows */}
-            <div className="co-meta-grid">
-              <div className="co-meta-item">
-                <span className="co-meta-label">Services</span>
-                <span className="co-meta-value">{(activeOrder.services || []).map((s) => s.name).join(', ') || '—'}</span>
-              </div>
-              <div className="co-meta-item">
-                <span className="co-meta-label">Total</span>
-                <span className="co-meta-value co-meta-price">${activeOrder.totalPrice?.toFixed(2)}</span>
-              </div>
-              <div className="co-meta-item">
-                <span className="co-meta-label">Employee</span>
-                <span className="co-meta-value">{activeOrder.assignedEmployee?.name || '—'}</span>
-              </div>
-              <div className="co-meta-item">
-                <span className="co-meta-label">Delivery</span>
-                <span className="co-meta-value">
-                  {activeOrder.deliveryDate ? new Date(activeOrder.deliveryDate).toLocaleDateString() : '—'}
-                </span>
-              </div>
-              <div className="co-meta-item">
-                <span className="co-meta-label">Placed</span>
-                <span className="co-meta-value">{new Date(activeOrder.createdAt).toLocaleDateString()}</span>
+              <div className="co-meta-grid co-meta-grid--incard">
+                <div className="co-meta-item">
+                  <span className="co-meta-label">Services</span>
+                  <span className="co-meta-value">{(activeOrder.services || []).map((s) => s.name).join(', ') || '—'}</span>
+                </div>
+                <div className="co-meta-item">
+                  <span className="co-meta-label">Total</span>
+                  <span className="co-meta-value co-meta-price">${activeOrder.totalPrice?.toFixed(2)}</span>
+                </div>
+                <div className="co-meta-item">
+                  <span className="co-meta-label">Employee</span>
+                  <span className="co-meta-value">{activeOrder.assignedEmployee?.name || '—'}</span>
+                </div>
+                <div className="co-meta-item">
+                  <span className="co-meta-label">Delivery</span>
+                  <span className="co-meta-value">
+                    {activeOrder.deliveryDate ? new Date(activeOrder.deliveryDate).toLocaleDateString() : '—'}
+                  </span>
+                </div>
+                <div className="co-meta-item">
+                  <span className="co-meta-label">Placed</span>
+                  <span className="co-meta-value">{new Date(activeOrder.createdAt).toLocaleDateString()}</span>
+                </div>
               </div>
             </div>
 
@@ -303,6 +310,69 @@ export default function ClientOrders() {
       {lightbox && (
         <ImageLightbox src={lightbox.src} name={lightbox.name} onClose={() => setLightbox(null)} />
       )}
+
+      {mediaModal && (() => {
+        const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+        const allAttachments = (activeOrder?.messages || []).flatMap((msg) => msg.attachments || []);
+        const images = allAttachments.filter((a) => a.mimetype?.startsWith('image/'));
+        const files  = allAttachments.filter((a) => !a.mimetype?.startsWith('image/'));
+        return (
+          <div className="modal-overlay" onClick={() => setMediaModal(false)}>
+            <div className="modal modal--media" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-media-header">
+                <h2>Shared Media &amp; Files</h2>
+                <button className="co-close-btn" onClick={() => setMediaModal(false)}>✕</button>
+              </div>
+              {allAttachments.length === 0 ? (
+                <p className="modal-media-empty">No files shared in this conversation yet.</p>
+              ) : (
+                <>
+                  {images.length > 0 && (
+                    <>
+                      <p className="modal-media-section-label">Images</p>
+                      <div className="media-grid">
+                        {images.map((att, i) => {
+                          const src = `${BASE}${att.url}`;
+                          return (
+                            <button
+                              key={i}
+                              className="media-grid-item"
+                              onClick={() => { setMediaModal(false); setLightbox({ src, name: att.originalName }); }}
+                            >
+                              <img src={src} alt={att.originalName} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                  {files.length > 0 && (
+                    <>
+                      <p className="modal-media-section-label">Files</p>
+                      <div className="media-file-list">
+                        {files.map((att, i) => (
+                          <a
+                            key={i}
+                            href={`${BASE}${att.url}`}
+                            download={att.originalName}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="media-file-row"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span className="media-file-name">{att.originalName}</span>
+                            <svg className="media-file-dl" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                          </a>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

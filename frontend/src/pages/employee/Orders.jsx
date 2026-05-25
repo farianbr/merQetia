@@ -47,7 +47,6 @@ export default function EmployeeOrders() {
   const chatBottomRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Accept modal
   const [acceptModal, setAcceptModal] = useState(null);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [acceptError, setAcceptError] = useState('');
@@ -57,6 +56,8 @@ export default function EmployeeOrders() {
   const [declineReason, setDeclineReason] = useState('');
 
   const [actionLoading, setActionLoading] = useState(false);
+  const [mediaModal, setMediaModal] = useState(false);
+  const [pendingOrderId, setPendingOrderId] = useState(null);
   const today = new Date().toISOString().split('T')[0];
 
   const fetchOrders = useCallback(async () => {
@@ -75,13 +76,22 @@ export default function EmployeeOrders() {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // Pre-select order when navigated from dashboard
+  // Capture orderId from navigation state — fires every time location.key changes
+  // (location.key is unique per navigation, so re-navigating to same orderId re-triggers)
   useEffect(() => {
-    if (location.state?.orderId && orders.length > 0) {
-      const target = orders.find((o) => o._id === location.state.orderId);
-      if (target) setActiveOrder(target);
+    if (location.state?.orderId) setPendingOrderId(location.state.orderId);
+  }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Apply pending orderId once orders are loaded
+  useEffect(() => {
+    if (!pendingOrderId || orders.length === 0) return;
+    const target = orders.find((o) => o._id === pendingOrderId);
+    if (target) {
+      setActiveOrder(target);
+      setShowAttachments(target.status === 'assigned');
+      setPendingOrderId(null);
     }
-  }, [orders, location.state?.orderId]);
+  }, [pendingOrderId, orders]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -160,6 +170,36 @@ export default function EmployeeOrders() {
   const removeAttachFile = (idx) =>
     setAttachFiles((prev) => prev.filter((_, i) => i !== idx));
 
+  const newRequests = orders.filter((o) => o.status === 'assigned');
+  const otherOrders = orders.filter((o) => o.status !== 'assigned');
+
+  const renderOrderItem = (o) => {
+    const isActive = activeOrder?._id === o._id;
+    const serviceNames = (o.services || []).map((s) => s.name).join(', ') || '—';
+    return (
+      <button
+        key={o._id}
+        className={`co-item ${isActive ? 'co-item--active' : ''} ${o.status === 'assigned' ? 'co-item--new-request' : ''}`}
+        onClick={() => { setActiveOrder(o); setMsgText(''); setAttachFiles([]); setError(''); setShowAttachments(o.status === 'assigned'); }}
+      >
+        <div className="co-item-top">
+          <span className="co-item-id">#{o._id.slice(-6).toUpperCase()}</span>
+          <span
+            className="co-item-status"
+            style={{ background: STATUS_COLORS[o.status] + '22', color: STATUS_COLORS[o.status] }}
+          >
+            {STATUS_LABEL[o.status]}
+          </span>
+        </div>
+        <p className="co-item-services">{serviceNames}</p>
+        <div className="co-item-meta">
+          <span>{o.clientId?.name || '—'}</span>
+          <span>{new Date(o.createdAt).toLocaleDateString()}</span>
+        </div>
+      </button>
+    );
+  };
+
   return (
     <div className="co-page">
       <div className="co-page-header">
@@ -177,39 +217,18 @@ export default function EmployeeOrders() {
           {orders.length === 0 && (
             <p className="co-empty">No orders yet.</p>
           )}
-          {orders.map((o) => {
-            const isActive = activeOrder?._id === o._id;
-            const serviceNames = (o.services || []).map((s) => s.name).join(', ') || '—';
-            return (
-              <button
-                key={o._id}
-                className={`co-item ${isActive ? 'co-item--active' : ''}`}
-                onClick={() => { setActiveOrder(o); setMsgText(''); setAttachFiles([]); setError(''); setShowAttachments(false); }}
-              >
-                <div className="co-item-top">
-                  <span className="co-item-id">#{o._id.slice(-6).toUpperCase()}</span>
-                  <span
-                    className="co-item-status"
-                    style={{ background: STATUS_COLORS[o.status] + '22', color: STATUS_COLORS[o.status] }}
-                  >
-                    {STATUS_LABEL[o.status]}
-                  </span>
-                </div>
-                <p className="co-item-services">{serviceNames}</p>
-                <div className="co-item-meta">
-                  <span>{o.clientId?.name || '—'}</span>
-                  <span>{new Date(o.createdAt).toLocaleDateString()}</span>
-                </div>
-              </button>
-            );
-          })}
+          {newRequests.map(renderOrderItem)}
+          {newRequests.length > 0 && otherOrders.length > 0 && (
+            <div className="co-list-section-bar" />
+          )}
+          {otherOrders.map(renderOrderItem)}
         </div>
 
         {/* —— Right: detail + conversation —— */}
         {activeOrder ? (
           <div className="co-detail">
             {/* Header */}
-            <div className="co-detail-header">
+            <div className="co-detail-header co-detail-header--shaded">
               <div>
                 <h2 className="co-detail-id">Order #{activeOrder._id.slice(-6).toUpperCase()}</h2>
                 <span
@@ -412,6 +431,14 @@ export default function EmployeeOrders() {
                       </div>
                     </div>
                   </div>
+
+                  {/* View All Media */}
+                  <div className="co-dp-section">
+                    <button className="co-dp-media-btn" onClick={() => setMediaModal(true)}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      View All Media
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -480,6 +507,69 @@ export default function EmployeeOrders() {
           onClose={() => setLightbox(null)}
         />
       )}
+
+      {mediaModal && (() => {
+        const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+        const allAttachments = (activeOrder?.messages || []).flatMap((msg) => msg.attachments || []);
+        const images = allAttachments.filter((a) => a.mimetype?.startsWith('image/'));
+        const files  = allAttachments.filter((a) => !a.mimetype?.startsWith('image/'));
+        return (
+          <div className="modal-overlay" onClick={() => setMediaModal(false)}>
+            <div className="modal modal--media" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-media-header">
+                <h2>Shared Media &amp; Files</h2>
+                <button className="co-close-btn" onClick={() => setMediaModal(false)}>✕</button>
+              </div>
+              {allAttachments.length === 0 ? (
+                <p className="modal-media-empty">No files shared in this conversation yet.</p>
+              ) : (
+                <>
+                  {images.length > 0 && (
+                    <>
+                      <p className="modal-media-section-label">Images</p>
+                      <div className="media-grid">
+                        {images.map((att, i) => {
+                          const src = `${BASE}${att.url}`;
+                          return (
+                            <button
+                              key={i}
+                              className="media-grid-item"
+                              onClick={() => { setMediaModal(false); setLightbox({ src, name: att.originalName }); }}
+                            >
+                              <img src={src} alt={att.originalName} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                  {files.length > 0 && (
+                    <>
+                      <p className="modal-media-section-label">Files</p>
+                      <div className="media-file-list">
+                        {files.map((att, i) => (
+                          <a
+                            key={i}
+                            href={`${BASE}${att.url}`}
+                            download={att.originalName}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="media-file-row"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span className="media-file-name">{att.originalName}</span>
+                            <svg className="media-file-dl" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                          </a>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
