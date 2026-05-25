@@ -1,0 +1,205 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { getOrders } from '../../api/orders';
+import OrderTimeline from '../../components/OrderTimeline';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const ACTIVE_STATUSES = new Set(['placed', 'assigned', 'accepted']);
+
+const STATUS_COLORS = {
+  placed:    '#f59e0b',
+  assigned:  '#3b82f6',
+  accepted:  '#8b5cf6',
+};
+const STATUS_LABEL = {
+  placed:    'Pending',
+  assigned:  'Assigned',
+  accepted:  'In Progress',
+};
+
+// ─── Order Card ───────────────────────────────────────────────────────────────
+function OrderCard({ order, isActive, onClick }) {
+  const serviceName = (order.services || []).map((s) => s.name).join(', ') || 'Order';
+  const color = STATUS_COLORS[order.status] || '#6b7280';
+  const label = STATUS_LABEL[order.status] || order.status;
+  const isPaid = order.invoice?.isPaid ?? order.isPaid;
+
+  return (
+    <button
+      className={`pw-order-card ${isActive ? 'pw-order-card--active' : ''}`}
+      onClick={onClick}
+    >
+      <div className="pw-oc-top">
+        <span className="pw-oc-name">{serviceName}</span>
+        <span className="pw-oc-badge" style={{ background: color + '1a', color }}>
+          {label}
+        </span>
+      </div>
+      <span className="pw-oc-id">Order #{order._id.slice(-6).toUpperCase()}</span>
+      <div className="pw-oc-foot">
+        <span className={`pw-oc-pay ${isPaid ? 'pw-oc-pay--paid' : 'pw-oc-pay--unpaid'}`}>
+          {isPaid ? '✓ Paid' : '⚠ Unpaid'}
+        </span>
+        {order.status === 'accepted' && (
+          <span className="pw-oc-date">
+            {order.deliveryDate
+              ? `Due ${new Date(order.deliveryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+              : new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+// ─── Order Detail Panel ───────────────────────────────────────────────────────
+function OrderDetail({ order, onClose }) {
+  const serviceName = (order.services || []).map((s) => s.name).join(', ') || 'Order';
+  const color = STATUS_COLORS[order.status] || '#6b7280';
+  const label = STATUS_LABEL[order.status] || order.status;
+
+  const allAnswers = order.answers || {};
+  const briefEntries = Object.entries(allAnswers).flatMap(([, qa]) =>
+    typeof qa === 'object' && !Array.isArray(qa) ? Object.entries(qa) : []
+  );
+
+  return (
+    <div className="pw-detail">
+      {/* Header */}
+      <div className="pw-detail-header">
+        <div>
+          <span className="pw-detail-eyebrow">Order Detail</span>
+          <h2 className="pw-detail-title">{serviceName}</h2>
+        </div>
+        <div className="pw-detail-header-right">
+          <span className="pw-oc-badge" style={{ background: color + '1a', color }}>{label}</span>
+          <button className="pw-close-btn" onClick={onClose} aria-label="Close">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Timeline */}
+      <OrderTimeline status={order.status} />
+
+      {/* Meta strip */}
+      <div className="pw-meta-strip">
+        <div className="pw-meta-item">
+          <span className="pw-meta-label">Total</span>
+          <span className="pw-meta-value">${order.totalPrice?.toFixed(2) ?? '—'}</span>
+        </div>
+        <div className="pw-meta-item">
+          <span className="pw-meta-label">Placed</span>
+          <span className="pw-meta-value">{new Date(order.createdAt).toLocaleDateString()}</span>
+        </div>
+        {order.deliveryDate && (
+          <div className="pw-meta-item">
+            <span className="pw-meta-label">Delivery</span>
+            <span className="pw-meta-value">{new Date(order.deliveryDate).toLocaleDateString()}</span>
+          </div>
+        )}
+        {order.assignedEmployee?.name && (
+          <div className="pw-meta-item">
+            <span className="pw-meta-label">Assigned to</span>
+            <span className="pw-meta-value">{order.assignedEmployee.name}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Brief / answers */}
+      {briefEntries.length > 0 && (
+        <div className="pw-brief">
+          <span className="pw-section-label">Initial Brief</span>
+          <div className="pw-brief-grid">
+            {briefEntries.map(([question, answer]) => (
+              <div key={question} className="pw-brief-card">
+                <span className="pw-brief-q">{question}</span>
+                <span className="pw-brief-a">{Array.isArray(answer) ? answer.join(', ') : answer}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="pw-detail-footer">
+        <Link to="/orders" state={{ selectOrderId: order._id }} className="pw-feedback-btn">View Full Order →</Link>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+export default function ClientDashboard() {
+  const [orders, setOrders] = useState([]);
+  const [activeOrder, setActiveOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getOrders()
+      .then((r) => {
+        const all = r.data.orders || r.data;
+        const active = all.filter((o) => ACTIVE_STATUSES.has(o.status));
+        setOrders(active);
+        const first = active.find((o) => o.status === 'accepted') || active[0];
+        if (first) setActiveOrder(first);
+      })
+      .catch(() => setError('Failed to load orders'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="loading">Loading workspace…</div>;
+  if (error)   return <div className="page-error">{error}</div>;
+
+  return (
+    <div className="pw-page">
+      <div className="pw-page-header">
+        <div>
+          <h1 className="pw-page-title">Project Workspace</h1>
+          <p className="pw-page-sub">Manage your creative requests and monitor delivery progress with real-time updates.</p>
+        </div>
+      </div>
+
+      <div className="pw-workspace">
+        {/* Left: active orders list */}
+        <div className="pw-list-col">
+          <div className="pw-list-header">
+            <span className="pw-list-title">Active Orders</span>
+            {orders.length > 0 && (
+              <span className="pw-list-count">{orders.length} Order{orders.length !== 1 ? 's' : ''}</span>
+            )}
+          </div>
+          <div className="pw-order-list">
+            {orders.length === 0 ? (
+              <div className="pw-empty">
+                <p>No active orders.</p>
+                <Link to="/services" className="pw-empty-cta">Browse Services →</Link>
+              </div>
+            ) : (
+              orders.map((o) => (
+                <OrderCard
+                  key={o._id}
+                  order={o}
+                  isActive={activeOrder?._id === o._id}
+                  onClick={() => setActiveOrder(o)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Right: detail */}
+        <div className="pw-detail-col">
+          {activeOrder ? (
+            <OrderDetail order={activeOrder} onClose={() => setActiveOrder(null)} />
+          ) : (
+            <div className="pw-detail-placeholder">
+              <p>Select an order to view details</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
