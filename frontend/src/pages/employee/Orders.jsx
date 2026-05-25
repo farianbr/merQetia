@@ -99,7 +99,7 @@ export default function EmployeeOrders() {
 
   useEffect(() => {
     if (activeOrder) chatBottomRef.current?.scrollIntoView({ behavior: 'instant' });
-  }, [activeOrder?._id]);
+  }, [activeOrder?._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAccept = async () => {
     if (!deliveryDate) { setAcceptError('Please pick a delivery date'); return; }

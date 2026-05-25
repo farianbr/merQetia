@@ -5,7 +5,7 @@ import { updateProfile, uploadAvatar } from '../../api/auth';
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 export default function ClientSettings() {
-  const { user, setSession } = useAuth();
+  const { user } = useAuth();
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');

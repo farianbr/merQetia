@@ -74,7 +74,7 @@ export default function ClientOrders() {
     if (activeOrder) {
       chatBottomRef.current?.scrollIntoView({ behavior: 'instant' });
     }
-  }, [activeOrder?._id]);
+  }, [activeOrder?._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSendMessage = async (e) => {
     e.preventDefault();

@@ -112,21 +112,21 @@ export default function EmployeeDashboard() {
   const [activeOrder, setActiveOrder] = useState(null);
   const [error, setError] = useState('');
 
-  const fetchOrders = async () => {
-    try {
-      const r = await getMyAssignments();
-      const list = r.data.orders || r.data;
-      setOrders(list);
-      setActiveOrder((prev) => {
-        if (prev) return list.find((o) => o._id === prev._id) || null;
-        return list.find((o) => o.status === 'accepted') || null;
-      });
-    } catch {
-      setError('Failed to load orders');
-    }
-  };
-
-  useEffect(() => { fetchOrders(); }, []);
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await getMyAssignments();
+        const list = r.data.orders || r.data;
+        setOrders(list);
+        setActiveOrder((prev) => {
+          if (prev) return list.find((o) => o._id === prev._id) || null;
+          return list.find((o) => o.status === 'accepted') || null;
+        });
+      } catch {
+        setError('Failed to load orders');
+      }
+    })();
+  }, []);
 
   const activeOrders = orders.filter((o) => o.status === 'accepted');
 

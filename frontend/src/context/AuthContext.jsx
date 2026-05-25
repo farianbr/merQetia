@@ -15,19 +15,21 @@ export function AuthProvider({ children }) {
 
   // Validate stored token on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    getMe()
-      .then((res) => setUser(res.data.user || res.data))
-      .catch(() => {
+    (async () => {
+      const token = localStorage.getItem('token');
+      try {
+        if (token) {
+          const res = await getMe();
+          setUser(res.data.user || res.data);
+        }
+      } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         setUser(null);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const login = async (credentials) => {
@@ -59,6 +61,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext);
 }

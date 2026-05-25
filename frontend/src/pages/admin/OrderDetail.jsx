@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getOrder, assignEmployee } from '../../api/orders';
 import { getEmployees } from '../../api/admin';
@@ -51,7 +51,7 @@ export default function AdminOrderDetail() {
 
   const chatBottomRef = useRef(null);
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       const r = await getOrder(id);
       setOrder(r.data.order);
@@ -60,9 +60,9 @@ export default function AdminOrderDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { fetchOrder(); }, [id]);
+  useEffect(() => { fetchOrder(); }, [fetchOrder]);
 
   useEffect(() => {
     getEmployees().then((r) => setEmployees(r.data.employees || []));
