@@ -181,7 +181,7 @@ function ClientLayoutInner({ children }) {
                             <span className="cl-notif-item-title">{n.title}</span>
                             <span className="cl-notif-item-time">{fmtNotifTime(n.createdAt)}</span>
                           </div>
-                          <span className="cl-notif-item-body">{n.typeLabel || n.body}</span>
+                          <span className="cl-notif-item-body">{n.type === 'status' ? n.body : (n.typeLabel || n.body)}</span>
                         </div>
                       ))
                     )}

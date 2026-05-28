@@ -6,6 +6,11 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const connectDB = require('./config/db');
 
+// -- Override default DNS servers to avoid potential resolution issues in certain environments
+const dns = require('node:dns');
+dns.setServers(['1.1.1.1', '8.8.8.8']);
+
+
 dotenv.config();
 connectDB();
 

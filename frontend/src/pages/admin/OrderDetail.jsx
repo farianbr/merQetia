@@ -20,17 +20,26 @@ const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
   accepted: '#8b5cf6',
+  overdue: '#dc2626',
   rejected: '#ef4444',
   completed: '#10b981',
 };
 
 const STATUS_LABEL = {
-  placed: 'Pending',
+  placed: 'Placed',
   assigned: 'Assigned',
-  accepted: 'Processing',
+  accepted: 'In Progress',
+  overdue: 'Overdue',
   rejected: 'Rejected',
   completed: 'Completed',
 };
+
+function getDisplayStatus(order) {
+  if (order.status === 'accepted' && order.deliveryDate && new Date(order.deliveryDate) < new Date()) {
+    return 'overdue';
+  }
+  return order.status;
+}
 
 
 export default function AdminOrderDetail() {
@@ -119,8 +128,8 @@ export default function AdminOrderDetail() {
             <h1 className="adp-title">Order <span className="adp-id">#{shortId}</span></h1>
             <p className="adp-placed">Placed {new Date(order.createdAt).toLocaleString()}</p>
           </div>
-          <span className="badge badge--lg" style={{ background: STATUS_COLORS[order.status] }}>
-            {STATUS_LABEL[order.status] || order.status}
+          <span className="badge badge--lg" style={{ background: STATUS_COLORS[getDisplayStatus(order)] }}>
+            {STATUS_LABEL[getDisplayStatus(order)] || order.status}
           </span>
         </div>
 

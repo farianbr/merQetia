@@ -7,8 +7,9 @@ import OrderTimeline from '../../components/OrderTimeline';
 // ─── Order Card (workspace panel) ────────────────────────────────────────────
 function WorkspaceCard({ order, isActive, onClick, statusColors, statusLabels }) {
   const serviceName = (order.services || []).map((s) => s.name).join(', ') || 'Order';
-  const color = statusColors[order.status] || '#6b7280';
-  const label = statusLabels[order.status] || order.status;
+  const ds = getDisplayStatus(order);
+  const color = statusColors[ds] || '#6b7280';
+  const label = statusLabels[ds] || ds;
   return (
     <button
       className={`pw-order-card ${isActive ? 'pw-order-card--active' : ''}`}
@@ -35,8 +36,9 @@ function WorkspaceCard({ order, isActive, onClick, statusColors, statusLabels })
 function WorkspaceDetail({ order, onClose, statusColors, statusLabels }) {
   const navigate = useNavigate();
   const serviceName = (order.services || []).map((s) => s.name).join(', ') || 'Order';
-  const color = statusColors[order.status] || '#6b7280';
-  const label = statusLabels[order.status] || order.status;
+  const ds = getDisplayStatus(order);
+  const color = statusColors[ds] || '#6b7280';
+  const label = statusLabels[ds] || ds;
   return (
     <div className="pw-detail">
       <div className="pw-detail-header">
@@ -94,17 +96,26 @@ const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
   accepted: '#8b5cf6',
+  overdue: '#dc2626',
   rejected: '#ef4444',
   completed: '#10b981',
 };
 
 const STATUS_LABEL = {
-  placed: 'Pending',
+  placed: 'Placed',
   assigned: 'New Request',
   accepted: 'In Progress',
+  overdue: 'Overdue',
   rejected: 'Declined',
   completed: 'Completed',
 };
+
+function getDisplayStatus(order) {
+  if (order.status === 'accepted' && order.deliveryDate && new Date(order.deliveryDate) < new Date()) {
+    return 'overdue';
+  }
+  return order.status;
+}
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();

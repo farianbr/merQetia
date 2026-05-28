@@ -7,9 +7,9 @@ const STATUS_COLORS = {
 };
 
 const STATUS_LABEL = {
-  placed: 'Pending',
+  placed: 'Placed',
   assigned: 'Assigned',
-  accepted: 'Processing',
+  accepted: 'In Progress',
   rejected: 'Rejected',
   completed: 'Completed',
 };

@@ -10,18 +10,28 @@ const STATUS_COLORS = {
   placed:    '#f59e0b',
   assigned:  '#3b82f6',
   accepted:  '#8b5cf6',
+  overdue:   '#dc2626',
 };
 const STATUS_LABEL = {
-  placed:    'Pending',
+  placed:    'Placed',
   assigned:  'Assigned',
   accepted:  'In Progress',
+  overdue:   'Overdue',
 };
+
+function getDisplayStatus(order) {
+  if (order.status === 'accepted' && order.deliveryDate && new Date(order.deliveryDate) < new Date()) {
+    return 'overdue';
+  }
+  return order.status;
+}
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
 function OrderCard({ order, isActive, onClick }) {
   const serviceName = (order.services || []).map((s) => s.name).join(', ') || 'Order';
-  const color = STATUS_COLORS[order.status] || '#6b7280';
-  const label = STATUS_LABEL[order.status] || order.status;
+  const ds = getDisplayStatus(order);
+  const color = STATUS_COLORS[ds] || '#6b7280';
+  const label = STATUS_LABEL[ds] || ds;
   const isPaid = order.invoice?.isPaid ?? order.isPaid;
 
   return (
@@ -40,7 +50,7 @@ function OrderCard({ order, isActive, onClick }) {
         <span className={`pw-oc-pay ${isPaid ? 'pw-oc-pay--paid' : 'pw-oc-pay--unpaid'}`}>
           {isPaid ? '✓ Paid' : '⚠ Unpaid'}
         </span>
-        {order.status === 'accepted' && (
+        {(order.status === 'accepted' || getDisplayStatus(order) === 'overdue') && (
           <span className="pw-oc-date">
             {order.deliveryDate
               ? `Due ${new Date(order.deliveryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
@@ -55,8 +65,9 @@ function OrderCard({ order, isActive, onClick }) {
 // ─── Order Detail Panel ───────────────────────────────────────────────────────
 function OrderDetail({ order, onClose }) {
   const serviceName = (order.services || []).map((s) => s.name).join(', ') || 'Order';
-  const color = STATUS_COLORS[order.status] || '#6b7280';
-  const label = STATUS_LABEL[order.status] || order.status;
+  const ds = getDisplayStatus(order);
+  const color = STATUS_COLORS[ds] || '#6b7280';
+  const label = STATUS_LABEL[ds] || ds;
 
   const allAnswers = order.answers || {};
   const briefEntries = Object.entries(allAnswers).flatMap(([, qa]) =>

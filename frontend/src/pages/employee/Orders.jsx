@@ -18,17 +18,26 @@ const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
   accepted: '#8b5cf6',
+  overdue: '#dc2626',
   rejected: '#ef4444',
   completed: '#10b981',
 };
 
 const STATUS_LABEL = {
-  placed: 'Pending',
+  placed: 'Placed',
   assigned: 'New Request',
   accepted: 'In Progress',
+  overdue: 'Overdue',
   rejected: 'Declined',
   completed: 'Completed',
 };
+
+function getDisplayStatus(order) {
+  if (order.status === 'accepted' && order.deliveryDate && new Date(order.deliveryDate) < new Date()) {
+    return 'overdue';
+  }
+  return order.status;
+}
 
 export default function EmployeeOrders() {
   const location = useLocation();
@@ -183,17 +192,16 @@ export default function EmployeeOrders() {
         onClick={() => { setActiveOrder(o); setMsgText(''); setAttachFiles([]); setError(''); setShowAttachments(o.status === 'assigned'); }}
       >
         <div className="co-item-top">
-          <span className="co-item-id">#{o._id.slice(-6).toUpperCase()}</span>
+          <span className="co-item-services">{serviceNames}</span>
+        </div>
+        <p className="co-item-id">#{o._id.slice(-6).toUpperCase()}</p>
+        <div className="co-item-meta">
           <span
             className="co-item-status"
-            style={{ background: STATUS_COLORS[o.status] + '22', color: STATUS_COLORS[o.status] }}
+            style={{ background: STATUS_COLORS[getDisplayStatus(o)] + '22', color: STATUS_COLORS[getDisplayStatus(o)] }}
           >
-            {STATUS_LABEL[o.status]}
+            {STATUS_LABEL[getDisplayStatus(o)]}
           </span>
-        </div>
-        <p className="co-item-services">{serviceNames}</p>
-        <div className="co-item-meta">
-          <span>{o.clientId?.name || '—'}</span>
           <span>{new Date(o.createdAt).toLocaleDateString()}</span>
         </div>
       </button>
@@ -233,9 +241,9 @@ export default function EmployeeOrders() {
                 <h2 className="co-detail-id">Order #{activeOrder._id.slice(-6).toUpperCase()}</h2>
                 <span
                   className="co-detail-status"
-                  style={{ background: STATUS_COLORS[activeOrder.status] + '22', color: STATUS_COLORS[activeOrder.status] }}
+                  style={{ background: STATUS_COLORS[getDisplayStatus(activeOrder)] + '22', color: STATUS_COLORS[getDisplayStatus(activeOrder)] }}
                 >
-                  {STATUS_LABEL[activeOrder.status]}
+                  {STATUS_LABEL[getDisplayStatus(activeOrder)]}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
@@ -406,9 +414,9 @@ export default function EmployeeOrders() {
                         <span className="co-dp-info-key">Status</span>
                         <span
                           className="co-dp-status-badge"
-                          style={{ background: STATUS_COLORS[activeOrder.status] + '22', color: STATUS_COLORS[activeOrder.status] }}
+                          style={{ background: STATUS_COLORS[getDisplayStatus(activeOrder)] + '22', color: STATUS_COLORS[getDisplayStatus(activeOrder)] }}
                         >
-                          {STATUS_LABEL[activeOrder.status]}
+                          {STATUS_LABEL[getDisplayStatus(activeOrder)]}
                         </span>
                       </div>
                       <div className="co-dp-info-row">

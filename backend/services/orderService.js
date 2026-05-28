@@ -7,7 +7,7 @@ const { generateInvoice } = require('./invoiceService');
 const { sendOrderConfirmation } = require('./emailService');
 
 const STATUS_LABEL = {
-  placed: 'Pending',
+  placed: 'Placed',
   assigned: 'Assigned',
   accepted: 'In Progress',
   rejected: 'Rejected',

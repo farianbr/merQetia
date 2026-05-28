@@ -11,10 +11,13 @@ const generatePDF = async (invoice) => {
 
   const browser = await puppeteer.launch({
     headless: 'new',
+    executablePath:
+      process.env.CHROME_PATH ||
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage', // Prevents crashes in low-memory environments
+      '--disable-dev-shm-usage',
     ],
   });
 

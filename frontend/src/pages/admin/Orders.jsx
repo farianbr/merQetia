@@ -6,17 +6,26 @@ const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
   accepted: '#8b5cf6',
+  overdue: '#dc2626',
   rejected: '#ef4444',
   completed: '#10b981',
 };
 
 const STATUS_LABEL = {
-  placed: 'Pending',
+  placed: 'Placed',
   assigned: 'Assigned',
-  accepted: 'Processing',
+  accepted: 'In Progress',
+  overdue: 'Overdue',
   rejected: 'Rejected',
   completed: 'Completed',
 };
+
+function getDisplayStatus(order) {
+  if (order.status === 'accepted' && order.deliveryDate && new Date(order.deliveryDate) < new Date()) {
+    return 'overdue';
+  }
+  return order.status;
+}
 
 const STATUSES = ['all', 'placed', 'assigned', 'accepted', 'rejected', 'completed'];
 
@@ -48,7 +57,7 @@ export default function AdminOrders() {
       const client = o.clientId?.name?.toLowerCase() || '';
       const employee = o.assignedEmployee?.name?.toLowerCase() || '';
       const dept = getDepartments(o).toLowerCase();
-      const status = (STATUS_LABEL[o.status] || o.status).toLowerCase();
+      const status = (STATUS_LABEL[getDisplayStatus(o)] || o.status).toLowerCase();
       const orderDate = new Date(o.createdAt).toLocaleDateString().toLowerCase();
       const deliveryDate = o.deliveryDate ? new Date(o.deliveryDate).toLocaleDateString().toLowerCase() : '';
       return (
@@ -125,8 +134,8 @@ export default function AdminOrders() {
                 <td>{o.clientId?.name || '—'}</td>
                 <td>{getDepartments(o)}</td>
                 <td>
-                  <span className="badge" style={{ background: STATUS_COLORS[o.status] }}>
-                    {STATUS_LABEL[o.status] || o.status}
+                  <span className="badge" style={{ background: STATUS_COLORS[getDisplayStatus(o)] }}>
+                    {STATUS_LABEL[getDisplayStatus(o)] || o.status}
                   </span>
                 </td>
                 <td>${o.totalPrice?.toFixed(2)}</td>
