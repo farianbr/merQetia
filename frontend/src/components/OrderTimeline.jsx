@@ -1,3 +1,5 @@
+import { LuCheck, LuX } from 'react-icons/lu';
+
 const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
@@ -59,31 +61,9 @@ export default function OrderTimeline({ status }) {
                 }
               >
                 {done ? (
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    stroke="#fff"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="2,6 5,9 10,3" />
-                  </svg>
+                  <LuCheck size={10} strokeWidth={3} color="#fff" />
                 ) : active && isRejected && step === 'rejected' ? (
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    stroke="#fff"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                  >
-                    <line x1="3" y1="3" x2="9" y2="9" />
-                    <line x1="9" y1="3" x2="3" y2="9" />
-                  </svg>
+                  <LuX size={10} strokeWidth={3} color="#fff" />
                 ) : null}
               </div>
               <span

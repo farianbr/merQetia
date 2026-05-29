@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const { generateOrderSummary } = require('./aiService');
 const { generateInvoice } = require('./invoiceService');
-const { sendOrderConfirmation } = require('./emailService');
+const { sendOrderConfirmation, sendNewOrderAdminAlert, sendOrderAssignedEmployee } = require('./emailService');
 
 const STATUS_LABEL = {
   placed: 'Placed',
@@ -33,6 +33,7 @@ const POPULATE_ORDER = [
   { path: 'services', select: 'name price department' },
   { path: 'assignedEmployee', select: 'name email' },
   { path: 'messages.sender', select: 'name' },
+  { path: 'updates.sender', select: 'name' },
 ];
 
 /**
@@ -95,6 +96,18 @@ const createOrder = async ({ clientId, serviceIds, answers = {} }) => {
   const client = await User.findById(clientId).select('name email');
   await sendOrderConfirmation({ order: populatedOrder, invoice, client });
 
+  // Notify all admins about the new order (fire-and-forget)
+  User.find({ role: 'admin' }).select('name email').then((admins) => {
+    const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+    sendNewOrderAdminAlert({
+      admins,
+      clientName: client.name,
+      services: services.map((s) => ({ name: s.name })),
+      orderId: order._id,
+      orderNum,
+    });
+  }).catch(() => {});
+
   return order;
 };
 
@@ -113,6 +126,7 @@ const getAllOrders = async ({ page = 1, limit = 20, status } = {}) => {
       .populate('services', 'name price department')
       .populate('assignedEmployee', 'name email')
       .populate('messages.sender', 'name')
+      .populate('updates.sender', 'name')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 }),
@@ -133,6 +147,7 @@ const getClientOrders = async ({ clientId, page = 1, limit = 20 }) => {
       .populate('services', 'name price department')
       .populate('assignedEmployee', 'name email')
       .populate('messages.sender', 'name')
+      .populate('updates.sender', 'name')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 }),
@@ -150,7 +165,8 @@ const getOrderById = async (id) => {
     .populate('clientId', 'name email')
     .populate('services', 'name price department questions')
     .populate('assignedEmployee', 'name email')
-    .populate('messages.sender', 'name');
+    .populate('messages.sender', 'name')
+    .populate('updates.sender', 'name');
 
   if (!order) {
     const err = new Error('Order not found');
@@ -192,6 +208,20 @@ const assignEmployee = async (orderId, employeeId) => {
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
   pushNotification(order.clientId, order._id, orderNum, 'status', 'Status Update', STATUS_LABEL.assigned);
   pushNotification(employeeId, order._id, orderNum, 'status', 'New Order Request', 'A new order has been assigned to you');
+
+  // Email the assigned employee (fire-and-forget)
+  Promise.all([
+    order.populate('services', 'name'),
+    User.findById(employeeId).select('name email'),
+    User.findById(order.clientId).select('name'),
+  ]).then(([populatedOrderWithServices, employee, client]) => {
+    sendOrderAssignedEmployee({
+      employee,
+      clientName: client?.name || 'Client',
+      services: (populatedOrderWithServices.services || []).map((s) => ({ name: s.name })),
+      orderNum,
+    });
+  }).catch(() => {});
 
   return order.populate(POPULATE_ORDER);
 };
@@ -354,6 +384,7 @@ const getEmployeeOrders = async ({ employeeId, page = 1, limit = 20, status }) =
       .populate('clientId', 'name email')
       .populate('services', 'name price department')
       .populate('messages.sender', 'name')
+      .populate('updates.sender', 'name')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 }),
@@ -361,6 +392,47 @@ const getEmployeeOrders = async ({ employeeId, page = 1, limit = 20, status }) =
   ]);
 
   return { orders, pagination: { total, page, pages: Math.ceil(total / limit) } };
+};
+
+/**
+ * Add an internal update (admin ↔ employee only)
+ */
+const addUpdate = async (orderId, senderId, senderRole, text, attachments = []) => {
+  if (senderRole === 'client') {
+    const err = new Error('Clients cannot post updates');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    const err = new Error('Order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (senderRole === 'employee' && (!order.assignedEmployee || order.assignedEmployee.toString() !== senderId.toString())) {
+    const err = new Error('You are not assigned to this order');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  order.updates.push({ sender: senderId, senderRole, text, attachments });
+  await order.save();
+
+  // Notify the other party
+  const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  const bodyPreview = text ? text.slice(0, 80) : `${attachments.length} file${attachments.length > 1 ? 's' : ''} shared`;
+  if (senderRole === 'employee' && order.assignedEmployee) {
+    // employee → notify all admins
+    User.find({ role: 'admin' }).select('_id').then((admins) => {
+      admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'message', 'New Update', bodyPreview));
+    }).catch(() => {});
+  } else if (senderRole === 'admin' && order.assignedEmployee) {
+    pushNotification(order.assignedEmployee, order._id, orderNum, 'message', 'New Update', bodyPreview);
+  }
+
+  return order.populate(POPULATE_ORDER);
 };
 
 module.exports = {
@@ -373,5 +445,6 @@ module.exports = {
   rejectOrder,
   completeOrder,
   addMessage,
+  addUpdate,
   getEmployeeOrders,
 };

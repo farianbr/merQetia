@@ -1,6 +1,6 @@
 const { sendEmail } = require('../utils/mailer');
 const { generatePDF } = require('../utils/pdfGenerator');
-const { orderConfirmationHTML } = require('../utils/emailTemplates');
+const { orderConfirmationHTML, newOrderAdminHTML, orderAssignedEmployeeHTML } = require('../utils/emailTemplates');
 const { getInvoiceById } = require('./invoiceService');
 
 /**
@@ -56,4 +56,34 @@ const sendOrderConfirmation = async ({ order, invoice, client }) => {
   }
 };
 
-module.exports = { sendOrderConfirmation };
+/**
+ * Notify all admins that a new order has been placed and needs assignment.
+ * Fire-and-forget — never throws.
+ */
+const sendNewOrderAdminAlert = async ({ admins, clientName, services, orderId, orderNum }) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const html = newOrderAdminHTML({ clientName, services, orderNum, frontendUrl });
+  for (const admin of admins) {
+    sendEmail({
+      to: admin.email,
+      subject: `New Order ${orderNum} — Assign Employee`,
+      html,
+    }).catch((err) => console.error('[Email] Failed to send admin alert:', err.message));
+  }
+};
+
+/**
+ * Notify an employee that an order has been assigned to them.
+ * Fire-and-forget — never throws.
+ */
+const sendOrderAssignedEmployee = async ({ employee, clientName, services, orderNum }) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const html = orderAssignedEmployeeHTML({ employeeName: employee.name, clientName, services, orderNum, frontendUrl });
+  sendEmail({
+    to: employee.email,
+    subject: `Order ${orderNum} Assigned to You`,
+    html,
+  }).catch((err) => console.error('[Email] Failed to send employee assignment email:', err.message));
+};
+
+module.exports = { sendOrderConfirmation, sendNewOrderAdminAlert, sendOrderAssignedEmployee };

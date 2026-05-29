@@ -8,6 +8,7 @@ const {
   rejectOrder,
   completeOrder,
   addMessage,
+  addUpdate,
   getEmployeeOrders,
 } = require('../services/orderService');
 
@@ -201,5 +202,33 @@ const postMessage = async (req, res, next) => {
   }
 };
 
-module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage };
+/**
+ * POST /api/orders/:id/updates
+ * Admin or assigned employee — post an internal update (separate from client chat)
+ */
+const postUpdate = async (req, res, next) => {
+  try {
+    const text = (req.body.text || '').trim();
+    const files = req.files || [];
+
+    if (!text && files.length === 0) {
+      return res.status(400).json({ success: false, message: 'Update text or at least one attachment is required' });
+    }
+
+    const attachments = files.map((f) => ({
+      originalName: f.originalname,
+      filename: f.filename,
+      url: `/uploads/orders/${req.params.id}/${f.filename}`,
+      mimetype: f.mimetype,
+      size: f.size,
+    }));
+
+    const order = await addUpdate(req.params.id, req.user.id, req.user.role, text, attachments);
+    res.status(201).json({ success: true, updates: order.updates });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate };
 

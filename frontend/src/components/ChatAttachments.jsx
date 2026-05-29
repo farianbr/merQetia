@@ -1,3 +1,5 @@
+import { LuZoomIn, LuDownload } from 'react-icons/lu';
+
 const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
 
 const FILE_META = {
@@ -35,10 +37,7 @@ export default function ChatAttachments({ attachments, onImageClick }) {
             >
               <img src={src} alt={att.originalName} className="chat-att-thumb" loading="lazy" />
               <span className="chat-att-img-overlay">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
-                </svg>
+                <LuZoomIn size={18} />
               </span>
             </button>
           );
@@ -63,11 +62,7 @@ export default function ChatAttachments({ attachments, onImageClick }) {
                 <span className="chat-att-file-size">{fmtSize(att.size)}</span>
               )}
             </div>
-            <svg className="chat-att-dl-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
+            <LuDownload className="chat-att-dl-icon" size={15} />
           </a>
         );
       })}

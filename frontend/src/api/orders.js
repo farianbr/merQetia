@@ -1,6 +1,6 @@
 import api from './axios';
 
-export const getOrders = () => api.get('/orders');
+export const getOrders = (params) => api.get('/orders', { params });
 export const getOrder = (id) => api.get(`/orders/${id}`);
 export const createOrder = (data) => api.post('/orders', data);
 export const assignEmployee = (id, employeeId) =>
@@ -21,6 +21,18 @@ export const sendMessage = (id, text, files = []) => {
   if (text) fd.append('text', text);
   files.forEach((f) => fd.append('files', f));
   return api.post(`/orders/${id}/messages`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const sendUpdate = (id, text, files = []) => {
+  if (files.length === 0) {
+    return api.post(`/orders/${id}/updates`, { text });
+  }
+  const fd = new FormData();
+  if (text) fd.append('text', text);
+  files.forEach((f) => fd.append('files', f));
+  return api.post(`/orders/${id}/updates`, fd, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };

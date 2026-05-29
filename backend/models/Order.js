@@ -74,6 +74,10 @@ const orderSchema = new mongoose.Schema(
       type: [messageSchema],
       default: [],
     },
+    updates: {
+      type: [messageSchema],
+      default: [],
+    },
   },
   { timestamps: true }
 );

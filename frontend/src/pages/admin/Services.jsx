@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { getServices, createService, updateService, deleteService } from '../../api/services';
+import { LuInfo } from 'react-icons/lu';
 
 const DEPT_COLORS = {
   Creative: { bg: '#ede9fe', text: '#6d28d9' },
@@ -141,7 +142,7 @@ export default function AdminServices() {
 
                 {s.questions?.length > 0 && (
                   <div className="svc-questions-hint">
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
+                    <LuInfo size={14} />
                     {s.questions.length} intake question{s.questions.length !== 1 ? 's' : ''}
                   </div>
                 )}

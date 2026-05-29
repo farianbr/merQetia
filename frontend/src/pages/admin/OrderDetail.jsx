@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getOrder, assignEmployee } from '../../api/orders';
 import { getEmployees } from '../../api/admin';
 import OrderTimeline from '../../components/OrderTimeline';
+import { LuUserPlus } from 'react-icons/lu';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 
@@ -175,12 +176,7 @@ export default function AdminOrderDetail() {
           <div className="adp-assign-cta">
             {!assigning ? (
               <button className="btn-primary adp-assign-btn" onClick={() => setAssigning(true)}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <line x1="19" y1="8" x2="19" y2="14" />
-                  <line x1="22" y1="11" x2="16" y2="11" />
-                </svg>
+                <LuUserPlus size={15} strokeWidth={2.5} />
                 Assign Employee
               </button>
             ) : (

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getOrders } from '../../api/orders';
 import OrderTimeline from '../../components/OrderTimeline';
+import { LuX } from 'react-icons/lu';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ACTIVE_STATUSES = new Set(['placed', 'assigned', 'accepted']);
@@ -85,7 +86,7 @@ function OrderDetail({ order, onClose }) {
         <div className="pw-detail-header-right">
           <span className="pw-oc-badge" style={{ background: color + '1a', color }}>{label}</span>
           <button className="pw-close-btn" onClick={onClose} aria-label="Close">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <LuX size={14} strokeWidth={2.5} />
           </button>
         </div>
       </div>

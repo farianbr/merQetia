@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage } = require('../controllers/orderController');
+const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate } = require('../controllers/orderController');
 const { protect } = require('../middlewares/authMiddleware');
 const { authorize } = require('../middlewares/roleMiddleware');
 const { validateOrder, validateAssign } = require('../middlewares/validators');
@@ -32,5 +32,8 @@ router.patch('/:id/complete', protect, authorize('employee'), complete);
 
 // Client or employee posts a message in the order conversation
 router.post('/:id/messages', protect, authorize('client', 'employee'), upload.array('files', 5), postMessage);
+
+// Admin or employee posts an internal update (admin ↔ employee only)
+router.post('/:id/updates', protect, authorize('admin', 'employee'), upload.array('files', 5), postUpdate);
 
 module.exports = router;

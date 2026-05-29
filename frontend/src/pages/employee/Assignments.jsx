@@ -4,6 +4,7 @@ import { getMyAssignments, acceptOrder, rejectOrder, completeOrder, sendMessage 
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import OrderTimeline from '../../components/OrderTimeline';
+import { LuClipboard, LuFile, LuPaperclip, LuImage } from 'react-icons/lu';
 
 function fmtTime(iso) {
   if (!iso) return '';
@@ -317,7 +318,7 @@ export default function EmployeeOrders() {
                               {f.type.startsWith('image/') ? (
                                 <img src={URL.createObjectURL(f)} alt={f.name} className="chat-attach-thumb" />
                               ) : (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                <LuFile size={14} />
                               )}
                               <span className="chat-attach-chip-name">{f.name}</span>
                               <button type="button" className="chat-attach-chip-rm" onClick={() => removeAttachFile(i)} aria-label="Remove">├ù</button>
@@ -349,7 +350,7 @@ export default function EmployeeOrders() {
                           disabled={sendingMsg || attachFiles.length >= 5}
                           title="Attach files (max 5)"
                         >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                          <LuPaperclip size={18} />
                         </button>
                         <button type="submit" className="btn-primary" disabled={sendingMsg || (!msgText.trim() && attachFiles.length === 0)}>
                           {sendingMsg ? 'ΓÇª' : 'Send'}
@@ -366,7 +367,7 @@ export default function EmployeeOrders() {
           </div>
         ) : (
           <div className="co-empty-detail">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            <LuClipboard size={40} color="currentColor" />
             <p>Select an order to view details</p>
           </div>
         )}

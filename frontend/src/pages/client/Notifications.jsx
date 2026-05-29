@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
+import { LuActivity, LuMessageSquare, LuBell } from 'react-icons/lu';
 
 const PAGE_SIZE = 10;
 
@@ -15,16 +16,8 @@ function fmtTime(iso) {
 }
 
 const TYPE_ICON = {
-  status: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-    </svg>
-  ),
-  message: (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-    </svg>
-  ),
+  status:  <LuActivity     size={16} />,
+  message: <LuMessageSquare size={16} />,
 };
 
 export default function ClientNotifications() {
@@ -76,9 +69,7 @@ export default function ClientNotifications() {
       <div className="nf-list">
         {notifications.length === 0 ? (
           <div className="nf-empty">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
-            </svg>
+            <LuBell size={40} color="#d1d5db" />
             <p>You&apos;re all caught up!</p>
           </div>
         ) : (

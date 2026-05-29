@@ -55,7 +55,7 @@ const getEmployees = async (req, res, next) => {
 
     const [activeCounts, completedCounts] = await Promise.all([
       Order.aggregate([
-        { $match: { assignedEmployee: { $in: employeeIds }, status: { $in: ['assigned', 'in_progress'] } } },
+        { $match: { assignedEmployee: { $in: employeeIds }, status: { $in: ['assigned', 'accepted'] } } },
         { $group: { _id: '$assignedEmployee', count: { $sum: 1 } } },
       ]),
       Order.aggregate([

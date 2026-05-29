@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getEmployees, inviteEmployee } from '../../api/admin';
+import { LuCircleCheck } from 'react-icons/lu';
 
 const DEPARTMENTS = ['Creative', 'Strategy', 'Media Buying'];
 
@@ -91,7 +92,7 @@ export default function AdminEmployees() {
               /* ── Sent confirmation state ── */
               <div className="inv-sent-wrap">
                 <div className="inv-sent-icon">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#14a800" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+                  <LuCircleCheck size={40} color="#14a800" />
                 </div>
                 <h2 className="inv-sent-title">Invitation Sent!</h2>
                 <p className="inv-sent-body">
