@@ -253,7 +253,8 @@ function EmpOrderGroup({ group, orders, onUpdateClick, activeUpdateId }) {
             <thead>
               <tr>
                 <th className="mq-th-marker" style={{ background: group.color }} />
-                <th className="mq-th-task">Order</th>
+                <th className="mq-th-id">Order #</th>
+                <th className="mq-th-task">Service</th>
                 <th className="mq-th-client">Client</th>
                 <th className="mq-th-status">Status</th>
                 <th className="mq-th-date">Delivery Date</th>
@@ -263,7 +264,7 @@ function EmpOrderGroup({ group, orders, onUpdateClick, activeUpdateId }) {
               {groupOrders.length === 0 ? (
                 <tr>
                   <td className="mq-td-marker" style={{ background: group.color }} />
-                  <td colSpan={4} className="mq-empty-row">No orders in this group</td>
+                  <td colSpan={5} className="mq-empty-row">No orders in this group</td>
                 </tr>
               ) : (
                 groupOrders.map((order) => {
@@ -272,6 +273,7 @@ function EmpOrderGroup({ group, orders, onUpdateClick, activeUpdateId }) {
                   return (
                     <tr key={order._id} className={`mq-row${isActive ? ' mq-row--panel-open' : ''}`}>
                       <td className="mq-td-marker" style={{ background: group.color }} />
+                      <td className="mq-td-id">#{order._id.slice(-6).toUpperCase()}</td>
                       <td className="mq-td-task">
                         <div className="mq-task-name-row">
                           <Link to="/employee/orders" state={{ orderId: order._id }} className="mq-order-link">
@@ -286,7 +288,6 @@ function EmpOrderGroup({ group, orders, onUpdateClick, activeUpdateId }) {
                             {msgCount > 0 && <span className="mq-updates-count">{msgCount}</span>}
                           </button>
                         </div>
-                        <span className="mq-order-id">#{order._id.slice(-6).toUpperCase()}</span>
                       </td>
                       <td className="mq-td">{order.clientId?.name || '—'}</td>
                       <td className="mq-td-status"><StatusPill status={order.status} deliveryDate={order.deliveryDate} /></td>
@@ -303,6 +304,7 @@ function EmpOrderGroup({ group, orders, onUpdateClick, activeUpdateId }) {
             <tfoot>
               <tr className="mq-footer-row">
                 <td className="mq-td-marker" style={{ background: group.color }} />
+                <td className="mq-footer-empty" />
                 <td className="mq-footer-empty" />
                 <td className="mq-footer-empty" />
                 <td className="mq-footer-status-cell">

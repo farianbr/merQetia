@@ -287,7 +287,8 @@ function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, o
             <thead>
               <tr>
                 <th className="mq-th-marker" style={{ background: group.color }} />
-                <th className="mq-th-task">Order</th>
+                <th className="mq-th-id">Order #</th>
+                <th className="mq-th-task">Service</th>
                 <th className="mq-th-client">Client</th>
                 <th className="mq-th-owner">Assigned To</th>
                 <th className="mq-th-status">Status</th>
@@ -298,7 +299,7 @@ function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, o
               {groupOrders.length === 0 ? (
                 <tr>
                   <td className="mq-td-marker" style={{ background: group.color }} />
-                  <td colSpan={5} className="mq-empty-row">No orders in this group</td>
+                  <td colSpan={6} className="mq-empty-row">No orders in this group</td>
                 </tr>
               ) : (
                 groupOrders.map((order) => {
@@ -307,6 +308,7 @@ function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, o
                   return (
                     <tr key={order._id} className={`mq-row${isActive ? ' mq-row--panel-open' : ''}${!order.assignedEmployee ? ' mq-row--unassigned' : ''}`}>
                       <td className="mq-td-marker" style={{ background: group.color }} />
+                      <td className="mq-td-id">#{order._id.slice(-6).toUpperCase()}</td>
                       <td className="mq-td-task">
                         <div className="mq-task-name-row">
                           <Link to={`/admin/orders/${order._id}`} className="mq-order-link">
@@ -321,7 +323,6 @@ function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, o
                             {msgCount > 0 && <span className="mq-updates-count">{msgCount}</span>}
                           </button>
                         </div>
-                        <span className="mq-order-id">#{order._id.slice(-6).toUpperCase()}</span>
                       </td>
                       <td className="mq-td">{order.clientId?.name || '—'}</td>
                       <td className="mq-td mq-td-owner">
@@ -343,6 +344,7 @@ function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, o
             <tfoot>
               <tr className="mq-footer-row">
                 <td className="mq-td-marker" style={{ background: group.color }} />
+                <td className="mq-footer-empty" />
                 <td className="mq-footer-empty" />
                 <td className="mq-footer-empty" />
                 <td className="mq-footer-empty" />
