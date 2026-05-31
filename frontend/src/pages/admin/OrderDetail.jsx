@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getOrder, assignEmployee } from '../../api/orders';
+import { getOrder, assignEmployee, adminSetDeliveryDate, adminResetStatus } from '../../api/orders';
 import { getEmployees } from '../../api/admin';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import {
-  LuArrowLeft, LuCalendarDays, LuUserCog, LuSettings2, LuCirclePause,
+  LuArrowLeft, LuCalendarDays, LuUserCog, LuSettings2,
   LuCheck, LuX, LuFileText, LuDownload, LuShieldCheck,
   LuLayoutList, LuClipboardList, LuPaperclip, LuMessageSquare,
 } from 'react-icons/lu';
@@ -126,10 +126,15 @@ export default function AdminOrderDetail() {
   const [lightbox, setLightbox] = useState(null);
 
   /* modal states */
-  const [modal, setModal] = useState(null); // 'reassign' | 'status' | 'delivery'
+  const [modal, setModal] = useState(null); // 'assign' | 'status' | 'delivery'
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [assignError, setAssignError] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
+  const [newDeliveryDate, setNewDeliveryDate] = useState('');
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
+  const [deliveryError, setDeliveryError] = useState('');
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState('');
 
   const chatBottomRef = useRef(null);
 
@@ -160,6 +165,36 @@ export default function AdminOrderDetail() {
       setAssignError(err.response?.data?.message || 'Assignment failed');
     } finally {
       setAssignLoading(false);
+    }
+  };
+
+  const handleSetDeliveryDate = async () => {
+    if (!newDeliveryDate) return;
+    setDeliveryLoading(true);
+    setDeliveryError('');
+    try {
+      await adminSetDeliveryDate(id, newDeliveryDate);
+      setModal(null);
+      setNewDeliveryDate('');
+      fetchOrder();
+    } catch (err) {
+      setDeliveryError(err.response?.data?.message || 'Failed to update delivery date');
+    } finally {
+      setDeliveryLoading(false);
+    }
+  };
+
+  const handleResetStatus = async () => {
+    setStatusLoading(true);
+    setStatusError('');
+    try {
+      await adminResetStatus(id);
+      setModal(null);
+      fetchOrder();
+    } catch (err) {
+      setStatusError(err.response?.data?.message || 'Failed to update status');
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -206,18 +241,24 @@ export default function AdminOrderDetail() {
           </div>
         </div>
         <div className="odv-controls-btns">
-          <button className="odv-ctrl-btn" onClick={() => setModal('delivery')}>
-            <LuCalendarDays size={14} color="#3b82f6" /> Change Delivery Date
-          </button>
-          <button className="odv-ctrl-btn" onClick={() => setModal('reassign')}>
-            <LuUserCog size={14} color="#8b5cf6" /> Reassign Employee
-          </button>
-          <button className="odv-ctrl-btn" onClick={() => setModal('status')}>
-            <LuSettings2 size={14} color="#6b7280" /> Change Status
-          </button>
-          <button className="odv-ctrl-btn odv-ctrl-btn--danger">
-            <LuCirclePause size={14} color="#ef4444" /> Pause Project
-          </button>
+          {/* Assign employee — only when no employee assigned (placed) */}
+          {order.status === 'placed' && (
+            <button className="odv-ctrl-btn" onClick={() => setModal('assign')}>
+              <LuUserCog size={14} color="#8b5cf6" /> Assign Employee
+            </button>
+          )}
+          {/* Change delivery date — only when accepted (in progress) */}
+          {order.status === 'accepted' && order.deliveryDate && (
+            <button className="odv-ctrl-btn" onClick={() => { setNewDeliveryDate(''); setDeliveryError(''); setModal('delivery'); }}>
+              <LuCalendarDays size={14} color="#3b82f6" /> Change Delivery Date
+            </button>
+          )}
+          {/* Change status — only for rejected or completed */}
+          {(order.status === 'rejected' || order.status === 'completed') && (
+            <button className="odv-ctrl-btn" onClick={() => { setStatusError(''); setModal('status'); }}>
+              <LuSettings2 size={14} color="#6b7280" /> Change Status
+            </button>
+          )}
         </div>
       </div>
 
@@ -383,14 +424,11 @@ export default function AdminOrderDetail() {
       </div>
 
       {/* ── Modals ── */}
-      {modal === 'reassign' && (
-        <Modal title="Reassign Employee" onClose={() => { setModal(null); setAssignError(''); }}>
+      {modal === 'assign' && (
+        <Modal title="Assign Employee" onClose={() => { setModal(null); setAssignError(''); }}>
           {assignError && <p className="error-msg">{assignError}</p>}
-          <p style={{ fontSize: '.88rem', color: '#6b7280', marginBottom: 12 }}>
-            Currently assigned: <strong>{order.assignedEmployee?.name || 'Unassigned'}</strong>
-          </p>
           <div className="form-group">
-            <label className="form-label">Select new employee</label>
+            <label className="form-label">Select employee</label>
             <select className="input" value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)}>
               <option value="">Select employee…</option>
               {employees.map((emp) => (
@@ -401,36 +439,52 @@ export default function AdminOrderDetail() {
           <div className="modal-actions">
             <button className="btn-secondary" onClick={() => { setModal(null); setAssignError(''); }}>Cancel</button>
             <button className="btn-primary" onClick={handleAssign} disabled={!selectedEmployee || assignLoading}>
-              {assignLoading ? 'Assigning…' : 'Confirm'}
+              {assignLoading ? 'Assigning…' : 'Assign'}
             </button>
           </div>
         </Modal>
       )}
 
       {modal === 'delivery' && (
-        <Modal title="Change Delivery Date" onClose={() => setModal(null)}>
-          <p style={{ fontSize: '.88rem', color: '#6b7280', marginBottom: 8 }}>
+        <Modal title="Change Delivery Date" onClose={() => { setModal(null); setNewDeliveryDate(''); setDeliveryError(''); }}>
+          {deliveryError && <p className="error-msg">{deliveryError}</p>}
+          <p style={{ fontSize: '.88rem', color: '#6b7280', marginBottom: 12 }}>
             Current delivery date: <strong>{fmtDate(order.deliveryDate)}</strong>
           </p>
-          <p style={{ fontSize: '.85rem', color: '#9ca3af', marginBottom: 16 }}>
-            Delivery date is set by the assigned employee when they accept the order. To change it, coordinate with the employee directly.
-          </p>
+          <div className="form-group">
+            <label className="form-label">New delivery date</label>
+            <input
+              type="date"
+              className="input"
+              value={newDeliveryDate}
+              onChange={(e) => setNewDeliveryDate(e.target.value)}
+            />
+          </div>
           <div className="modal-actions">
-            <button className="btn-secondary" onClick={() => setModal(null)}>Close</button>
+            <button className="btn-secondary" onClick={() => { setModal(null); setNewDeliveryDate(''); setDeliveryError(''); }}>Cancel</button>
+            <button className="btn-primary" onClick={handleSetDeliveryDate} disabled={!newDeliveryDate || deliveryLoading}>
+              {deliveryLoading ? 'Saving…' : 'Save'}
+            </button>
           </div>
         </Modal>
       )}
 
       {modal === 'status' && (
-        <Modal title="Order Status" onClose={() => setModal(null)}>
+        <Modal title="Change Order Status" onClose={() => { setModal(null); setStatusError(''); }}>
+          {statusError && <p className="error-msg">{statusError}</p>}
           <p style={{ fontSize: '.88rem', color: '#6b7280', marginBottom: 8 }}>
             Current status: <strong>{cfg.label}</strong>
           </p>
-          <p style={{ fontSize: '.85rem', color: '#9ca3af', marginBottom: 16 }}>
-            Status transitions are driven by employee actions (accept, complete, reject). Use this panel to monitor progress.
+          <p style={{ fontSize: '.85rem', color: '#374151', marginBottom: 16 }}>
+            {order.status === 'rejected'
+              ? 'This will reset the order back to Unassigned (Placed) status so it can be assigned to a new employee.'
+              : 'This will move the order back to In Progress status.'}
           </p>
           <div className="modal-actions">
-            <button className="btn-secondary" onClick={() => setModal(null)}>Close</button>
+            <button className="btn-secondary" onClick={() => { setModal(null); setStatusError(''); }}>Cancel</button>
+            <button className="btn-primary" onClick={handleResetStatus} disabled={statusLoading}>
+              {statusLoading ? 'Updating…' : order.status === 'rejected' ? 'Reset to Unassigned' : 'Set to In Progress'}
+            </button>
           </div>
         </Modal>
       )}

@@ -62,7 +62,7 @@ const sendOrderConfirmation = async ({ order, invoice, client }) => {
  */
 const sendNewOrderAdminAlert = async ({ admins, clientName, services, orderId, orderNum }) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const html = newOrderAdminHTML({ clientName, services, orderNum, frontendUrl });
+  const html = newOrderAdminHTML({ clientName, services, orderNum, orderId, frontendUrl });
   for (const admin of admins) {
     sendEmail({
       to: admin.email,

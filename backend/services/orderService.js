@@ -97,8 +97,9 @@ const createOrder = async ({ clientId, serviceIds, answers = {} }) => {
   await sendOrderConfirmation({ order: populatedOrder, invoice, client });
 
   // Notify all admins about the new order (fire-and-forget)
-  User.find({ role: 'admin' }).select('name email').then((admins) => {
+  User.find({ role: 'admin' }).select('_id name email').then((admins) => {
     const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+    const serviceNames = services.map((s) => s.name).join(', ');
     sendNewOrderAdminAlert({
       admins,
       clientName: client.name,
@@ -106,6 +107,16 @@ const createOrder = async ({ clientId, serviceIds, answers = {} }) => {
       orderId: order._id,
       orderNum,
     });
+    admins.forEach((admin) =>
+      pushNotification(
+        admin._id,
+        order._id,
+        orderNum,
+        'status',
+        'New Order',
+        `New order ${orderNum} placed by ${client.name} for: ${serviceNames}. Needs employee assignment.`
+      )
+    );
   }).catch(() => {});
 
   return order;
@@ -206,8 +217,8 @@ const assignEmployee = async (orderId, employeeId) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Status Update', STATUS_LABEL.assigned);
-  pushNotification(employeeId, order._id, orderNum, 'status', 'New Order Request', 'A new order has been assigned to you');
+  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Assigned', `Your order ${orderNum} has been assigned to an employee. They will review and respond shortly.`);
+  pushNotification(employeeId, order._id, orderNum, 'status', 'New Order Assigned to You', `Order ${orderNum} from a client has been assigned to you. Please review and accept or decline.`);
 
   // Email the assigned employee (fire-and-forget)
   Promise.all([
@@ -254,7 +265,11 @@ const acceptOrder = async (orderId, employeeId, deliveryDate) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Status Update', STATUS_LABEL.accepted);
+  const fmtDelivery = new Date(deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order In Progress', `Your order ${orderNum} has been accepted and is now in progress. Estimated delivery: ${fmtDelivery}.`);
+  User.find({ role: 'admin' }).select('_id').then((admins) => {
+    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Accepted by Employee', `Order ${orderNum} has been accepted by the assigned employee. Delivery date set to ${fmtDelivery}.`));
+  }).catch(() => {});
 
   return order.populate(POPULATE_ORDER);
 };
@@ -287,7 +302,16 @@ const rejectOrder = async (orderId, employeeId, reason) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Status Update', STATUS_LABEL.rejected);
+  const rejectBody = reason
+    ? `Your order ${orderNum} was declined by the employee. Reason: ${reason}. Admin will arrange reassignment.`
+    : `Your order ${orderNum} was declined by the employee. Admin will arrange reassignment.`;
+  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Declined', rejectBody);
+  User.find({ role: 'admin' }).select('_id').then((admins) => {
+    const adminBody = reason
+      ? `Order ${orderNum} was rejected by the employee. Reason: ${reason}.`
+      : `Order ${orderNum} was rejected by the employee. No reason provided.`;
+    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Rejected by Employee', adminBody));
+  }).catch(() => {});
 
   return order.populate(POPULATE_ORDER);
 };
@@ -319,7 +343,10 @@ const completeOrder = async (orderId, employeeId) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Status Update', STATUS_LABEL.completed);
+  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Completed', `Great news! Your order ${orderNum} has been completed. Please review the delivered work.`);
+  User.find({ role: 'admin' }).select('_id').then((admins) => {
+    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been marked as completed by the employee.`));
+  }).catch(() => {});
 
   return order.populate(POPULATE_ORDER);
 };
@@ -358,13 +385,18 @@ const addMessage = async (orderId, senderId, senderRole, text, attachments = [])
   order.messages.push({ sender: senderId, senderRole, text, attachments });
   await order.save();
 
-  // Notify the other party (employee → notify client; client/admin → notify client's employee)
+  // Notify the other party (employee → notify client; client → notify employee)
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  const bodyPreview = text ? text.slice(0, 80) : `${attachments.length} file${attachments.length > 1 ? 's' : ''} shared`;
-  if (senderRole === 'employee' || senderRole === 'admin') {
-    pushNotification(order.clientId, order._id, orderNum, 'message', 'New Message', bodyPreview);
+  if (senderRole === 'employee') {
+    const body = text
+      ? `Your employee sent a message on order ${orderNum}: "${text.slice(0, 80)}"`
+      : `Your employee shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
+    pushNotification(order.clientId, order._id, orderNum, 'message', 'New Message from Employee', body);
   } else if (senderRole === 'client' && order.assignedEmployee) {
-    pushNotification(order.assignedEmployee, order._id, orderNum, 'message', 'New Message', bodyPreview);
+    const body = text
+      ? `Client sent a message on order ${orderNum}: "${text.slice(0, 80)}"`
+      : `Client shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
+    pushNotification(order.assignedEmployee, order._id, orderNum, 'message', 'New Message from Client', body);
   }
 
   return order.populate(POPULATE_ORDER);
@@ -422,15 +454,83 @@ const addUpdate = async (orderId, senderId, senderRole, text, attachments = []) 
 
   // Notify the other party
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  const bodyPreview = text ? text.slice(0, 80) : `${attachments.length} file${attachments.length > 1 ? 's' : ''} shared`;
   if (senderRole === 'employee' && order.assignedEmployee) {
+    const body = text
+      ? `Employee posted an update on order ${orderNum}: "${text.slice(0, 80)}"`
+      : `Employee shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
     // employee → notify all admins
     User.find({ role: 'admin' }).select('_id').then((admins) => {
-      admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'message', 'New Update', bodyPreview));
+      admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'message', 'New Update from Employee', body));
     }).catch(() => {});
   } else if (senderRole === 'admin' && order.assignedEmployee) {
-    pushNotification(order.assignedEmployee, order._id, orderNum, 'message', 'New Update', bodyPreview);
+    const body = text
+      ? `Admin posted an update on order ${orderNum}: "${text.slice(0, 80)}"`
+      : `Admin shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
+    pushNotification(order.assignedEmployee, order._id, orderNum, 'message', 'New Update from Admin', body);
   }
+
+  return order.populate(POPULATE_ORDER);
+};
+
+/**
+ * Admin overrides the delivery date on an accepted order
+ */
+const adminSetDeliveryDate = async (orderId, deliveryDate) => {
+  const order = await Order.findById(orderId);
+  if (!order) {
+    const err = new Error('Order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (order.status !== 'accepted') {
+    const err = new Error('Delivery date can only be changed on orders that are in progress (accepted)');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  order.deliveryDate = deliveryDate;
+  await order.save();
+
+  const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  pushNotification(order.clientId, order._id, orderNum, 'status', 'Delivery Date Updated', `Your delivery date has been updated to ${new Date(deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+  if (order.assignedEmployee) {
+    pushNotification(order.assignedEmployee, order._id, orderNum, 'status', 'Delivery Date Updated', 'Admin has updated the delivery date for this order');
+  }
+
+  return order.populate(POPULATE_ORDER);
+};
+
+/**
+ * Admin resets order status:
+ *   rejected → placed (clears employee, rejectionReason, deliveryDate)
+ *   completed → accepted (back in progress)
+ */
+const adminResetOrderStatus = async (orderId) => {
+  const order = await Order.findById(orderId);
+  if (!order) {
+    const err = new Error('Order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (order.status === 'rejected') {
+    order.status = 'placed';
+    order.assignedEmployee = null;
+    order.rejectionReason = null;
+    order.deliveryDate = null;
+  } else if (order.status === 'completed') {
+    order.status = 'accepted';
+  } else {
+    const err = new Error('Status can only be reset for rejected or completed orders');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await order.save();
+
+  const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Status Updated', `Your order status has been updated`);
 
   return order.populate(POPULATE_ORDER);
 };
@@ -447,4 +547,6 @@ module.exports = {
   addMessage,
   addUpdate,
   getEmployeeOrders,
+  adminSetDeliveryDate,
+  adminResetOrderStatus,
 };

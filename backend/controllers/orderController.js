@@ -10,6 +10,8 @@ const {
   addMessage,
   addUpdate,
   getEmployeeOrders,
+  adminSetDeliveryDate,
+  adminResetOrderStatus,
 } = require('../services/orderService');
 
 /**
@@ -230,5 +232,35 @@ const postUpdate = async (req, res, next) => {
   }
 };
 
-module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate };
+/**
+ * PATCH /api/orders/:id/delivery-date
+ * Admin only — override the delivery date on an accepted order
+ */
+const setDeliveryDate = async (req, res, next) => {
+  try {
+    const { deliveryDate } = req.body;
+    if (!deliveryDate) {
+      return res.status(400).json({ success: false, message: 'deliveryDate is required' });
+    }
+    const order = await adminSetDeliveryDate(req.params.id, deliveryDate);
+    res.status(200).json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/orders/:id/reset-status
+ * Admin only — rejected → placed, completed → accepted
+ */
+const resetStatus = async (req, res, next) => {
+  try {
+    const order = await adminResetOrderStatus(req.params.id);
+    res.status(200).json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate, setDeliveryDate, resetStatus };
 

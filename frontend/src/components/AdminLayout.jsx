@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { NotificationProvider, useNotifications } from '../context/NotificationContext';
-import { getOrders } from '../api/orders';
 import {
   LuLayoutDashboard, LuShoppingBag, LuWrench, LuFileText,
   LuChartBar, LuDollarSign, LuUsers, LuSettings, LuLogOut, LuBell,
@@ -32,7 +31,7 @@ function fmtNotifTime(iso) {
 
 const NAV_ITEMS = [
   { path: '/admin',            label: 'Dashboard', Icon: DashIcon,       exact: true },
-  { path: '/admin/orders',     label: 'Orders',    Icon: OrdersIcon,     badge: true },
+  { path: '/admin/orders',     label: 'Orders',    Icon: OrdersIcon },
   { path: '/admin/services',   label: 'Services',  Icon: ServicesIcon },
   { path: '/admin/invoices',   label: 'Invoices',  Icon: InvoicesIcon },
   { path: '/admin/reports',    label: 'Reports',   Icon: ReportsIcon },
@@ -46,25 +45,10 @@ function AdminLayoutInner({ children }) {
   const navigate = useNavigate();
   const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
 
-  const [pendingCount, setPendingCount] = useState(0);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   const userMenuRef = useRef(null);
   const bellRef = useRef(null);
-
-  // Load pending order count
-  useEffect(() => {
-    const load = () =>
-      getOrders()
-        .then((r) => {
-          const list = r.data.orders || r.data;
-          setPendingCount(list.filter((o) => o.status === 'placed').length);
-        })
-        .catch(() => {});
-    load();
-    const id = setInterval(load, 60_000);
-    return () => clearInterval(id);
-  }, []);
 
   // Close user menu on outside click
   useEffect(() => {
@@ -94,7 +78,7 @@ function AdminLayoutInner({ children }) {
     if (notif.type === 'message') {
       navigate(`/admin?openUpdate=${notif.orderId}`);
     } else {
-      navigate('/admin/orders');
+      navigate(`/admin/orders/${notif.orderId}`);
     }
   };
 
@@ -126,9 +110,6 @@ function AdminLayoutInner({ children }) {
               >
                 <NavIcon />
                 <span>{item.label}</span>
-                {item.badge && pendingCount > 0 && (
-                  <span className="cl-nav-badge">{pendingCount > 9 ? '9+' : pendingCount}</span>
-                )}
               </Link>
             );
           })}
@@ -183,7 +164,7 @@ function AdminLayoutInner({ children }) {
                             <span className="cl-notif-item-title">{n.title}</span>
                             <span className="cl-notif-item-time">{fmtNotifTime(n.createdAt)}</span>
                           </div>
-                          <span className="cl-notif-item-body">{n.type === 'status' ? n.body : (n.typeLabel || n.body)}</span>
+                          <span className="cl-notif-item-body">{n.body}</span>
                         </div>
                       ))
                     )}

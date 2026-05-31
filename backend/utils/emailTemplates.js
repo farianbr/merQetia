@@ -108,9 +108,9 @@ const orderConfirmationHTML = ({ clientName, invoiceNumber, orderDate, services,
 /**
  * Email to admin when a new order is placed — prompts to assign an employee.
  */
-const newOrderAdminHTML = ({ clientName, services, orderNum, frontendUrl }) => {
+const newOrderAdminHTML = ({ clientName, services, orderNum, orderId, frontendUrl }) => {
   const serviceList = services.map((s) => `<li style="padding:4px 0;">${s.name}</li>`).join('');
-  const assignUrl = `${frontendUrl}/admin`;
+  const assignUrl = `${frontendUrl}/admin/orders/${orderId}`;
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>

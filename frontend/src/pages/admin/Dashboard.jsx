@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { getEmployees, getReportSummary } from '../../api/admin';
+import { getEmployees } from '../../api/admin';
 import { assignEmployee as assignEmployeeApi, getOrders, sendUpdate } from '../../api/orders';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import {
-  LuMessageSquare, LuFile, LuPaperclip,
-  LuChevronDown, LuX,
+  LuChevronDown, LuFile, LuMessageSquare, LuPaperclip,
+  LuSlidersHorizontal, LuX,
 } from 'react-icons/lu';
 
 const STATUS_CONFIG = {
@@ -18,10 +18,20 @@ const STATUS_CONFIG = {
   completed: { label: 'Completed',   color: '#10b981' },
 };
 
+const COLUMN_DEFS = [
+  { key: 'id',      label: 'Order #',      sortable: true, sortType: 'alpha',  defaultVisible: false },
+  { key: 'service', label: 'Service',       sortable: true, sortType: 'alpha',  defaultVisible: true  },
+  { key: 'client',  label: 'Client',        sortable: true, sortType: 'alpha',  defaultVisible: true  },
+  { key: 'owner',   label: 'Assigned To',   sortable: true, sortType: 'alpha',  defaultVisible: false },
+  { key: 'status',  label: 'Status',        sortable: true, sortType: 'status', defaultVisible: true  },
+  { key: 'date',    label: 'Delivery Date', sortable: true, sortType: 'date',   defaultVisible: true  },
+];
+
+const STATUS_TIMELINE = ['placed', 'assigned', 'accepted', 'overdue', 'completed', 'rejected'];
+
 const GROUPS = [
-  { key: 'active',    label: 'Active Orders', color: '#0073ea', statuses: ['placed', 'assigned', 'accepted'] },
-  { key: 'completed', label: 'Completed',     color: '#00c875', statuses: ['completed'] },
-  { key: 'rejected',  label: 'Rejected',      color: '#e2445c', statuses: ['rejected'] },
+  { key: 'new',    label: 'New Orders',    color: '#ff8000', statuses: ['placed', 'assigned'] },
+  { key: 'active', label: 'Active Orders', color: '#0073ea', statuses: ['accepted'] },
 ];
 
 function fmtTimeAgo(iso) {
@@ -242,33 +252,74 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
 }
 
 /* ─── Order Group ────────────────────────────────────────────────── */
-function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, onAssign }) {
-  const [collapsed, setCollapsed] = useState(group.key !== 'active');
+function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, onAssign, colOrder, visibleCols, sortState, onSort, onColDragStart, onColDrop }) {
+  const [collapsed, setCollapsed] = useState(false);
   const [footerTip, setFooterTip] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
   const footerTipTimer = useRef(null);
-  const groupOrders = orders.filter((o) => group.statuses.includes(o.status));
 
-  const statusCounts = groupOrders.reduce((acc, o) => {
-    const st = (() => {
-      if (o.status === 'accepted' && o.deliveryDate) {
-        const due = new Date(o.deliveryDate);
-        due.setHours(23, 59, 59, 999);
-        if (due < new Date()) return 'overdue';
+  const groupOrders = useMemo(
+    () => orders.filter((o) => group.statuses.includes(o.status)),
+    [orders, group.statuses],
+  );
+
+  const activeCols = useMemo(
+    () => colOrder.filter((k) => visibleCols.has(k)),
+    [colOrder, visibleCols],
+  );
+
+  const getEffectiveStatus = useCallback((o) => {
+    if (o.status === 'accepted' && o.deliveryDate) {
+      const due = new Date(o.deliveryDate);
+      due.setHours(23, 59, 59, 999);
+      if (due < new Date()) return 'overdue';
+    }
+    return o.status;
+  }, []);
+
+  const sortedOrders = useMemo(() => {
+    const { col, dir } = sortState;
+    if (!col) return groupOrders;
+    const def = COLUMN_DEFS.find((c) => c.key === col);
+    if (!def) return groupOrders;
+    return [...groupOrders].sort((a, b) => {
+      if (def.sortType === 'alpha') {
+        let av = '', bv = '';
+        if (col === 'id')      { av = a._id; bv = b._id; }
+        else if (col === 'service') { av = (a.services || []).map((s) => s.name).join(', '); bv = (b.services || []).map((s) => s.name).join(', '); }
+        else if (col === 'client')  { av = a.clientId?.name || ''; bv = b.clientId?.name || ''; }
+        else if (col === 'owner')   { av = a.assignedEmployee?.name || ''; bv = b.assignedEmployee?.name || ''; }
+        const cmp = av.localeCompare(bv, undefined, { sensitivity: 'base' });
+        return dir === 'asc' ? cmp : -cmp;
       }
-      return o.status;
-    })();
+      if (def.sortType === 'status') {
+        const ai = STATUS_TIMELINE.indexOf(getEffectiveStatus(a));
+        const bi = STATUS_TIMELINE.indexOf(getEffectiveStatus(b));
+        return dir === 'asc' ? ai - bi : bi - ai;
+      }
+      if (def.sortType === 'date') {
+        const at = a.deliveryDate ? new Date(a.deliveryDate).getTime() : Infinity;
+        const bt = b.deliveryDate ? new Date(b.deliveryDate).getTime() : Infinity;
+        return dir === 'asc' ? at - bt : bt - at;
+      }
+      return 0;
+    });
+  }, [groupOrders, sortState, getEffectiveStatus]);
+
+  const statusCounts = useMemo(() => groupOrders.reduce((acc, o) => {
+    const st = getEffectiveStatus(o);
     acc[st] = (acc[st] || 0) + 1;
     return acc;
-  }, {});
+  }, {}), [groupOrders, getEffectiveStatus]);
 
-  const dateRange = (() => {
+  const dateRange = useMemo(() => {
     const dates = groupOrders.filter((o) => o.deliveryDate).map((o) => new Date(o.deliveryDate));
     if (!dates.length) return null;
     const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const min = new Date(Math.min(...dates));
     const max = new Date(Math.max(...dates));
     return min.getTime() === max.getTime() ? fmt(min) : `${fmt(min)} – ${fmt(max)}`;
-  })();
+  }, [groupOrders]);
 
   return (
     <div className="mq-group">
@@ -287,55 +338,96 @@ function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, o
             <thead>
               <tr>
                 <th className="mq-th-marker" style={{ background: group.color }} />
-                <th className="mq-th-id">Order #</th>
-                <th className="mq-th-task">Service</th>
-                <th className="mq-th-client">Client</th>
-                <th className="mq-th-owner">Assigned To</th>
-                <th className="mq-th-status">Status</th>
-                <th className="mq-th-date">Delivery Date</th>
+                {activeCols.map((colKey) => {
+                  const def = COLUMN_DEFS.find((c) => c.key === colKey);
+                  if (!def) return null;
+                  const isSorted = sortState.col === colKey;
+                  return (
+                    <th
+                      key={colKey}
+                      className={`mq-th${isSorted ? ' mq-th--sorted' : ''}${dragOverCol === colKey ? ' mq-th--drag-over' : ''}`}
+                      draggable
+                      onDragStart={() => onColDragStart(colKey)}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverCol(colKey); }}
+                      onDragLeave={() => setDragOverCol((c) => (c === colKey ? null : c))}
+                      onDrop={() => { onColDrop(colKey); setDragOverCol(null); }}
+                      onDragEnd={() => setDragOverCol(null)}
+                      onClick={() => def.sortable && onSort(colKey)}
+                      title="Click to sort · Drag to reorder"
+                    >
+                      <span className="mq-th-inner">
+                        <span>{def.label}</span>
+                        {def.sortable && (
+                          <span className="mq-sort-icon">
+                            {isSorted ? (sortState.dir === 'asc' ? '↑' : '↓') : '↕'}
+                          </span>
+                        )}
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {groupOrders.length === 0 ? (
+              {sortedOrders.length === 0 ? (
                 <tr>
                   <td className="mq-td-marker" style={{ background: group.color }} />
-                  <td colSpan={6} className="mq-empty-row">No orders in this group</td>
+                  <td colSpan={activeCols.length} className="mq-empty-row">No orders in this group</td>
                 </tr>
               ) : (
-                groupOrders.map((order) => {
+                sortedOrders.map((order) => {
                   const isActive = activeUpdateId === order._id;
                   const msgCount = order.updates?.length || 0;
                   return (
                     <tr key={order._id} className={`mq-row${isActive ? ' mq-row--panel-open' : ''}${!order.assignedEmployee ? ' mq-row--unassigned' : ''}`}>
                       <td className="mq-td-marker" style={{ background: group.color }} />
-                      <td className="mq-td-id">#{order._id.slice(-6).toUpperCase()}</td>
-                      <td className="mq-td-task">
-                        <div className="mq-task-name-row">
-                          <Link to={`/admin/orders/${order._id}`} className="mq-order-link">
-                            {order.services?.map((s) => s.name).join(', ') || '—'}
-                          </Link>
-                          <button
-                            className={`mq-updates-btn${isActive ? ' mq-updates-btn--active' : ''}`}
-                            onClick={() => onUpdateClick(order)}
-                            title={`${msgCount} update${msgCount !== 1 ? 's' : ''}`}
-                          >
-                            <LuMessageSquare size={13} />
-                            {msgCount > 0 && <span className="mq-updates-count">{msgCount}</span>}
-                          </button>
-                        </div>
-                      </td>
-                      <td className="mq-td">{order.clientId?.name || '—'}</td>
-                      <td className="mq-td mq-td-owner">
-                        {order.assignedEmployee
-                          ? <OwnerAvatar name={order.assignedEmployee.name} />
-                          : <AssignSelect orderId={order._id} employees={employees} onAssign={onAssign} />}
-                      </td>
-                      <td className="mq-td-status"><StatusPill status={order.status} deliveryDate={order.deliveryDate} /></td>
-                      <td className="mq-td mq-td-date">
-                        {order.deliveryDate
-                          ? new Date(order.deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                          : '—'}
-                      </td>
+                      {activeCols.map((colKey) => {
+                        switch (colKey) {
+                          case 'id': return (
+                            <td key={colKey} className="mq-td-id">#{order._id.slice(-6).toUpperCase()}</td>
+                          );
+                          case 'service': return (
+                            <td key={colKey} className="mq-td-task">
+                              <div className="mq-task-name-row">
+                                <Link to={`/admin/orders/${order._id}`} className="mq-order-link">
+                                  {order.services?.map((s) => s.name).join(', ') || '—'}
+                                </Link>
+                                <button
+                                  className={`mq-updates-btn${isActive ? ' mq-updates-btn--active' : ''}`}
+                                  onClick={() => onUpdateClick(order)}
+                                  title={`${msgCount} update${msgCount !== 1 ? 's' : ''}`}
+                                >
+                                  <LuMessageSquare size={13} />
+                                  {msgCount > 0 && <span className="mq-updates-count">{msgCount}</span>}
+                                </button>
+                              </div>
+                            </td>
+                          );
+                          case 'client': return (
+                            <td key={colKey} className="mq-td">{order.clientId?.name || '—'}</td>
+                          );
+                          case 'owner': return (
+                            <td key={colKey} className="mq-td mq-td-owner">
+                              {order.assignedEmployee
+                                ? <OwnerAvatar name={order.assignedEmployee.name} />
+                                : <AssignSelect orderId={order._id} employees={employees} onAssign={onAssign} />}
+                            </td>
+                          );
+                          case 'status': return (
+                            <td key={colKey} className="mq-td-status">
+                              <StatusPill status={order.status} deliveryDate={order.deliveryDate} />
+                            </td>
+                          );
+                          case 'date': return (
+                            <td key={colKey} className="mq-td mq-td-date">
+                              {order.deliveryDate
+                                ? new Date(order.deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                : '—'}
+                            </td>
+                          );
+                          default: return <td key={colKey} />;
+                        }
+                      })}
                     </tr>
                   );
                 })
@@ -344,29 +436,32 @@ function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, o
             <tfoot>
               <tr className="mq-footer-row">
                 <td className="mq-td-marker" style={{ background: group.color }} />
-                <td className="mq-footer-empty" />
-                <td className="mq-footer-empty" />
-                <td className="mq-footer-empty" />
-                <td className="mq-footer-empty" />
-                <td className="mq-footer-status-cell">
-                  <div className="mq-footer-bar" onMouseLeave={() => { setFooterTip((t) => t ? { ...t, out: true } : null); footerTipTimer.current = setTimeout(() => setFooterTip(null), 150); }}>
-                    {Object.entries(statusCounts).map(([st, count]) => {
-                      const cfg = STATUS_CONFIG[st] || { label: st, color: '#9ca3af' };
-                      const total = groupOrders.length;
-                      return (
-                        <div
-                          key={st}
-                          className="mq-footer-seg"
-                          style={{ background: cfg.color, flex: count }}
-                          onMouseEnter={(e) => { clearTimeout(footerTipTimer.current); const r = e.currentTarget.getBoundingClientRect(); setFooterTip({ label: cfg.label, count, total, pct: Math.round((count / total) * 100), x: r.left + r.width / 2, y: r.top, out: false }); }}
-                        />
-                      );
-                    })}
-                  </div>
-                </td>
-                <td className="mq-footer-date-cell">
-                  {dateRange && <span className="mq-footer-daterange">{dateRange}</span>}
-                </td>
+                {activeCols.map((colKey) => {
+                  if (colKey === 'status') return (
+                    <td key={colKey} className="mq-footer-status-cell">
+                      <div className="mq-footer-bar" onMouseLeave={() => { setFooterTip((t) => t ? { ...t, out: true } : null); footerTipTimer.current = setTimeout(() => setFooterTip(null), 150); }}>
+                        {Object.entries(statusCounts).map(([st, count]) => {
+                          const cfg = STATUS_CONFIG[st] || { label: st, color: '#9ca3af' };
+                          const total = groupOrders.length;
+                          return (
+                            <div
+                              key={st}
+                              className="mq-footer-seg"
+                              style={{ background: cfg.color, flex: count }}
+                              onMouseEnter={(e) => { clearTimeout(footerTipTimer.current); const r = e.currentTarget.getBoundingClientRect(); setFooterTip({ label: cfg.label, count, total, pct: Math.round((count / total) * 100), x: r.left + r.width / 2, y: r.top, out: false }); }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </td>
+                  );
+                  if (colKey === 'date') return (
+                    <td key={colKey} className="mq-footer-date-cell">
+                      {dateRange && <span className="mq-footer-daterange">{dateRange}</span>}
+                    </td>
+                  );
+                  return <td key={colKey} className="mq-footer-empty" />;
+                })}
               </tr>
             </tfoot>
           </table>
@@ -390,11 +485,71 @@ function OrderGroup({ group, orders, onUpdateClick, activeUpdateId, employees, o
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [summary, setSummary] = useState(null);
   const [orders, setOrders] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [panelOrder, setPanelOrder] = useState(null);
   const pendingOpenRef = useRef(null);
+
+  // Column config
+  const [colOrder, setColOrder] = useState(() => COLUMN_DEFS.map((c) => c.key));
+  const [visibleCols, setVisibleCols] = useState(
+    () => new Set(COLUMN_DEFS.filter((c) => c.defaultVisible).map((c) => c.key)),
+  );
+  const [sortState, setSortState] = useState({ col: null, dir: 'asc' });
+  const [showColPicker, setShowColPicker] = useState(false);
+  const dragColRef = useRef(null);
+  const colPickerRef = useRef(null);
+
+  const handleSort = useCallback((colKey) => {
+    setSortState((prev) => ({
+      col: colKey,
+      dir: prev.col === colKey && prev.dir === 'asc' ? 'desc' : 'asc',
+    }));
+  }, []);
+
+  const handleColDragStart = useCallback((colKey) => {
+    dragColRef.current = colKey;
+  }, []);
+
+  const handleColDrop = useCallback((targetKey) => {
+    const from = dragColRef.current;
+    if (!from || from === targetKey) return;
+    setColOrder((prev) => {
+      const arr = [...prev];
+      const fi = arr.indexOf(from);
+      const ti = arr.indexOf(targetKey);
+      if (fi === -1 || ti === -1) return prev;
+      arr.splice(fi, 1);
+      arr.splice(ti, 0, from);
+      return arr;
+    });
+    dragColRef.current = null;
+  }, []);
+
+  const toggleCol = useCallback((key) => {
+    setVisibleCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        if (next.size <= 1) return prev;
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!showColPicker) return;
+    const handler = (e) => {
+      if (colPickerRef.current && !colPickerRef.current.contains(e.target)) {
+        setShowColPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showColPicker]);
 
   const fetchOrders = () =>
     getOrders({ limit: 200 }).then((r) => {
@@ -431,7 +586,6 @@ export default function AdminDashboard() {
   }, [openUpdateId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    getReportSummary().then((r) => setSummary(r.data)).catch(() => {});
     fetchOrders();
     getEmployees().then((r) => setEmployees(r.data.employees || [])).catch(() => {});
   }, []);
@@ -451,25 +605,29 @@ export default function AdminDashboard() {
     <div className={`page mq-page${panelOrder ? ' mq-page--panel-open' : ''}`}>
       <div className="mq-main">
         <div className="section-header">
-          <h1>Dashboard</h1>
-        </div>
-
-        <div className="stat-grid">
-          <div className="stat-card" style={{ borderTop: '4px solid #10b981' }}>
-            <span className="stat-count">${summary?.revenue?.toFixed(2) ?? '—'}</span>
-            <span className="stat-label">Total Revenue</span>
+          <div>
+            <h1>Dashboard</h1>
+            <p className="subtitle">Overview of client orders.</p>
           </div>
-          <div className="stat-card" style={{ borderTop: '4px solid #ef4444' }}>
-            <span className="stat-count">${summary?.expenses?.total?.toFixed(2) ?? '—'}</span>
-            <span className="stat-label">Total Expenses</span>
-          </div>
-          <div className="stat-card" style={{ borderTop: '4px solid #3b82f6' }}>
-            <span className="stat-count">${summary?.profit?.toFixed(2) ?? '—'}</span>
-            <span className="stat-label">Net Profit</span>
-          </div>
-          <div className="stat-card" style={{ borderTop: '4px solid #8b5cf6' }}>
-            <span className="stat-count">{summary?.profitMargin ?? '—'}</span>
-            <span className="stat-label">Profit Margin</span>
+          <div className="mq-col-picker-wrap" ref={colPickerRef}>
+            <button className="mq-col-picker-btn" onClick={() => setShowColPicker((p) => !p)}>
+              <LuSlidersHorizontal size={14} />
+              Columns
+            </button>
+            {showColPicker && (
+              <div className="mq-col-picker-dropdown">
+                {COLUMN_DEFS.map((col) => (
+                  <label key={col.key} className="mq-col-picker-row">
+                    <input
+                      type="checkbox"
+                      checked={visibleCols.has(col.key)}
+                      onChange={() => toggleCol(col.key)}
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -483,6 +641,12 @@ export default function AdminDashboard() {
               activeUpdateId={panelOrder?._id}
               employees={employees}
               onAssign={handleAssign}
+              colOrder={colOrder}
+              visibleCols={visibleCols}
+              sortState={sortState}
+              onSort={handleSort}
+              onColDragStart={handleColDragStart}
+              onColDrop={handleColDrop}
             />
           ))}
         </div>

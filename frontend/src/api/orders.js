@@ -36,3 +36,9 @@ export const sendUpdate = (id, text, files = []) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
+
+export const adminSetDeliveryDate = (id, deliveryDate) =>
+  api.patch(`/orders/${id}/delivery-date`, { deliveryDate });
+
+export const adminResetStatus = (id) =>
+  api.patch(`/orders/${id}/reset-status`);

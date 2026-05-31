@@ -1250,7 +1250,7 @@ button { cursor: pointer; border: none; border-radius: var(--radius); font-size:
    ─── Monday.com-style Order Board (admin dashboard) ───
 ══════════════════════════════════════════════════════════════ */
 
-.mq-board { display: flex; flex-direction: column; gap: 0; }
+.mq-board { display: flex; flex-direction: column; gap: 0; margin-top: 1.5rem; }
 
 /* Group */
 .mq-group { display: flex; flex-direction: column; margin-bottom: 1.5rem; }
@@ -1271,9 +1271,9 @@ button { cursor: pointer; border: none; border-radius: var(--radius); font-size:
 }
 
 /* Table inside a group */
-.mq-group-body { border-radius: 8px; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.mq-group-body { display: inline-block; max-width: 100%; border-radius: 8px; overflow-x: auto; overflow-y: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); }
 
-.mq-table { width: 100%; border-collapse: collapse; background: var(--card-bg); }
+.mq-table { border-collapse: collapse; background: var(--card-bg); }
 .mq-table thead tr { background: #f7f8fa; }
 
 /* Thin colored marker column */
@@ -1286,6 +1286,49 @@ button { cursor: pointer; border: none; border-radius: var(--radius); font-size:
 .mq-th-owner  { padding: .45rem .75rem; text-align: center; font-size: .75rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); width: 90px; }
 .mq-th-status { padding: .45rem .5rem;  text-align: center; font-size: .75rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); width: 120px; }
 .mq-th-date   { padding: .45rem .75rem; text-align: center; font-size: .75rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); width: 100px; }
+
+/* Generic dynamic column header (admin dashboard) */
+.mq-th {
+  padding: .45rem .75rem; text-align: center; font-size: .75rem; font-weight: 600;
+  color: var(--text-muted); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+  white-space: nowrap; user-select: none; cursor: grab; position: relative;
+  transition: background .1s, color .1s;
+}
+.mq-th:last-child { border-right: none; }
+.mq-th:active { cursor: grabbing; }
+.mq-th:hover { background: #eef2ff; color: var(--primary); }
+.mq-th--sorted { color: var(--primary); }
+.mq-th--drag-over { background: #ede9fe !important; color: var(--primary) !important; box-shadow: inset -2px 0 0 var(--primary); }
+.mq-th-inner { display: inline-flex; align-items: center; gap: .35rem; justify-content: center; }
+.mq-sort-icon { font-size: .68rem; opacity: .4; line-height: 1; transition: opacity .1s; }
+.mq-th:hover .mq-sort-icon { opacity: .7; }
+.mq-th--sorted .mq-sort-icon { opacity: 1; }
+
+/* Column picker */
+.mq-col-picker-wrap { position: relative; }
+.mq-col-picker-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .4rem .8rem; border-radius: 7px;
+  background: var(--card-bg); border: 1px solid var(--border);
+  font-size: .82rem; font-weight: 600; color: var(--text-muted);
+  cursor: pointer; transition: background .12s, border-color .12s, color .12s;
+}
+.mq-col-picker-btn:hover { background: var(--bg); border-color: #c4b5fd; color: var(--primary); }
+.mq-col-picker-dropdown {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  padding: .4rem; z-index: 200; min-width: 155px;
+  display: flex; flex-direction: column; gap: .05rem;
+}
+.mq-col-picker-row {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .4rem .6rem; border-radius: 6px;
+  font-size: .84rem; color: var(--text); cursor: pointer;
+  transition: background .1s;
+}
+.mq-col-picker-row:hover { background: var(--bg); }
+.mq-col-picker-row input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; flex-shrink: 0; cursor: pointer; }
 
 .mq-row { transition: background .1s; }
 .mq-row:hover { background: #f7f8fa; }
@@ -1523,8 +1566,8 @@ button { cursor: pointer; border: none; border-radius: var(--radius); font-size:
 /* Footer in tfoot */
 .mq-footer-row td { background: #f7f8fa; border-top: 2px solid var(--border); vertical-align: middle; padding: 0; }
 .mq-footer-empty { padding: 0 !important; }
-.mq-footer-status-cell { padding: .4rem .5rem !important; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
-.mq-footer-date-cell { padding: .35rem .75rem !important; text-align: center; border-right: none; border-left: 1px solid var(--border); }
+.mq-footer-status-cell { padding: .4rem .5rem !important; border-right: 1px solid var(--border); }
+.mq-footer-date-cell { padding: .35rem .75rem !important; text-align: center; }
 
 .mq-footer-bar {
   flex: 1; display: flex;
@@ -1575,8 +1618,8 @@ button { cursor: pointer; border: none; border-radius: var(--radius); font-size:
 /* Row highlight when panel open */
 .mq-row--panel-open { background: #f5f3ff; }
 .mq-row--panel-open:hover { background: #f0ecff; }
-.mq-row--unassigned { background: #fffbeb; }
-.mq-row--unassigned:hover { background: #fef3c7 !important; }
+.mq-row--unassigned { background: #fff0f0; }
+.mq-row--unassigned:hover { background: #ffe4e4 !important; }
 
 /* ── Board + panel layout ── */
 .mq-page { position: relative; overflow: hidden; }
