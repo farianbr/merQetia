@@ -169,6 +169,17 @@ function AdminLayoutInner({ children }) {
                       ))
                     )}
                   </div>
+                  {notifications.length > 0 && (
+                    <div className="cl-notif-footer">
+                      <Link
+                        to="/admin/notifications"
+                        className="cl-notif-see-all"
+                        onClick={() => setBellOpen(false)}
+                      >
+                        See all notifications →
+                      </Link>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -29,6 +29,7 @@ import AdminReports from './pages/admin/Reports';
 import AdminExpenses from './pages/admin/Expenses';
 import AdminEmployees from './pages/admin/Employees';
 import AdminSettings from './pages/admin/Settings';
+import AdminNotifications from './pages/admin/Notifications';
 
 // Employee
 import EmployeeDashboard from './pages/employee/Dashboard';
@@ -73,6 +74,7 @@ function AppRoutes() {
       <Route path="/admin/expenses"      element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminExpenses /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/employees"     element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminEmployees /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/settings"      element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminSettings /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/notifications"  element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminNotifications /></AdminLayout></ProtectedRoute>} />
 
       {/* ── Employee ── */}
       <Route path="/employee"                element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeDashboard /></EmployeeLayout></ProtectedRoute>} />

@@ -1803,7 +1803,7 @@ button { cursor: pointer; border: none; border-radius: var(--radius); font-size:
 }
 
 /* ── Update column ── */
-.mq-th-update { padding: .6rem .75rem; text-align: center; font-size: .78rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); width: 60px; }
+.mq-th-update { padding: .6rem .75rem; text-align: center; font-size: .78rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); width: 95px; }
 
 .mq-update-btn {
   display: inline-flex; align-items: center; gap: .3rem;
