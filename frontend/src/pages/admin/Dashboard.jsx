@@ -974,6 +974,11 @@ export default function AdminDashboard() {
         next.delete(key);
       } else {
         next.add(key);
+        setColOrder((currentOrder) => {
+          const arr = currentOrder.filter((k) => k !== key);
+          arr.push(key);
+          return arr;
+        });
       }
       return next;
     });
