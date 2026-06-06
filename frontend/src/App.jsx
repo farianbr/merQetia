@@ -17,6 +17,7 @@ import ClientServices from './pages/client/Services';
 import ClientInvoices from './pages/client/Invoices';
 import ClientSettings from './pages/client/Settings';
 import ClientNotifications from './pages/client/Notifications';
+import ClientProfile from './pages/client/Profile';
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard';
@@ -27,12 +28,14 @@ import AdminInvoices from './pages/admin/Invoices';
 import AdminReports from './pages/admin/Reports';
 import AdminExpenses from './pages/admin/Expenses';
 import AdminEmployees from './pages/admin/Employees';
+import AdminSettings from './pages/admin/Settings';
 
 // Employee
 import EmployeeDashboard from './pages/employee/Dashboard';
 import EmployeeOrders from './pages/employee/Orders';
 import EmployeeSettings from './pages/employee/Settings';
 import EmployeeNotifications from './pages/employee/Notifications';
+import EmployeeProfile from './pages/employee/Profile';
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -57,6 +60,7 @@ function AppRoutes() {
       <Route path="/services"       element={<ProtectedRoute roles={['client']}><ClientLayout><ClientServices /></ClientLayout></ProtectedRoute>} />
       <Route path="/invoices"       element={<ProtectedRoute roles={['client']}><ClientLayout><ClientInvoices /></ClientLayout></ProtectedRoute>} />
       <Route path="/settings"       element={<ProtectedRoute roles={['client']}><ClientLayout><ClientSettings /></ClientLayout></ProtectedRoute>} />
+      <Route path="/profile"         element={<ProtectedRoute roles={['client']}><ClientLayout><ClientProfile /></ClientLayout></ProtectedRoute>} />
       <Route path="/notifications"  element={<ProtectedRoute roles={['client']}><ClientLayout><ClientNotifications /></ClientLayout></ProtectedRoute>} />
 
       {/* ── Admin ── */}
@@ -68,6 +72,7 @@ function AppRoutes() {
       <Route path="/admin/reports"       element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminReports /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/expenses"      element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminExpenses /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/employees"     element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminEmployees /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/settings"      element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminSettings /></AdminLayout></ProtectedRoute>} />
 
       {/* ── Employee ── */}
       <Route path="/employee"                element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeDashboard /></EmployeeLayout></ProtectedRoute>} />
@@ -75,6 +80,7 @@ function AppRoutes() {
       <Route path="/employee/notifications"   element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeNotifications /></EmployeeLayout></ProtectedRoute>} />
 
       <Route path="/employee/settings"       element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeSettings /></EmployeeLayout></ProtectedRoute>} />
+      <Route path="/employee/profile"         element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeProfile /></EmployeeLayout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

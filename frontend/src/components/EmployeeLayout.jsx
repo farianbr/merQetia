@@ -3,15 +3,16 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { NotificationProvider, useNotifications } from '../context/NotificationContext';
 import {
-  LuLayoutDashboard, LuClipboardCheck, LuBell, LuSettings, LuLogOut,
+  LuLayoutDashboard, LuClipboardCheck, LuBell, LuSettings, LuLogOut, LuUser,
 } from 'react-icons/lu';
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
+// ── Icons ────────────────────────────────────────────────────────────────────────────────
 const DashIcon        = () => <LuLayoutDashboard  size={17} />;
 const AssignmentsIcon = () => <LuClipboardCheck   size={17} />;
 const BellIcon        = () => <LuBell             size={18} />;
 const SettingsIcon    = () => <LuSettings         size={17} />;
 const LogoutIcon      = () => <LuLogOut           size={17} />;
+const ProfileIcon     = () => <LuUser             size={17} />;
 
 const NAV_ITEMS = [
   { path: '/employee',         label: 'Dashboard', Icon: DashIcon,    exact: true },
@@ -105,6 +106,13 @@ function EmployeeLayoutInner({ children }) {
 
         <div className="cl-sidebar-footer">
           <Link
+            to="/employee/profile"
+            className={`cl-nav-item ${location.pathname === '/employee/profile' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
+          >
+            <ProfileIcon />
+            <span>Profile</span>
+          </Link>
+          <Link
             to="/employee/settings"
             className={`cl-nav-item ${location.pathname === '/employee/settings' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
           >
@@ -127,7 +135,7 @@ function EmployeeLayoutInner({ children }) {
               <button className="cl-icon-btn" aria-label="Notifications" onClick={handleBellClick}>
                 <BellIcon />
                 {unreadCount > 0 && (
-                  <span className="cl-notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  <span className="cl-notif-badge" aria-hidden="true" />
                 )}
               </button>
               {bellOpen && (

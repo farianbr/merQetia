@@ -139,7 +139,7 @@ function AdminLayoutInner({ children }) {
               <button className="cl-icon-btn" aria-label="Notifications" onClick={handleBellClick}>
                 <BellIcon />
                 {unreadCount > 0 && (
-                  <span className="cl-notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  <span className="cl-notif-badge" aria-hidden="true" />
                 )}
               </button>
               {bellOpen && (
@@ -186,8 +186,9 @@ function AdminLayoutInner({ children }) {
                   <div className="cl-user-menu-info">
                     <span className="cl-user-menu-name">{user?.name}</span>
                     <span className="cl-user-menu-role">Administrator</span>
-                  </div>
-                  <button className="cl-user-menu-item cl-user-menu-item--logout" onClick={handleLogout}>
+                  </div>                    <Link to="/admin/settings" className="cl-user-menu-item" onClick={() => setUserMenuOpen(false)}>
+                      <SettingsIcon /> Settings
+                    </Link>                  <button className="cl-user-menu-item cl-user-menu-item--logout" onClick={handleLogout}>
                     <LogoutIcon /> Logout
                   </button>
                 </div>

@@ -43,8 +43,12 @@ const login = async (req, res, next) => {
  * GET /api/auth/me
  * Protected — returns current user info from token
  */
-const getMe = async (req, res) => {
-  res.status(200).json({ success: true, user: req.user });
+const getMe = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    res.status(200).json({ success: true, user });
+  } catch (err) { next(err); }
 };
 
 /**
@@ -88,6 +92,25 @@ const updateProfile = async (req, res, next) => {
 };
 
 /**
+ * PUT /api/auth/dashboard-prefs
+ * Protected — save admin dashboard column/sort preferences
+ */
+const saveDashboardPrefs = async (req, res, next) => {
+  try {
+    const { colOrder, visibleCols, sortCol, sortDir } = req.body;
+    await User.findByIdAndUpdate(req.user.id, {
+      'dashboardPrefs.colOrder':    Array.isArray(colOrder)    ? colOrder    : [],
+      'dashboardPrefs.visibleCols': Array.isArray(visibleCols) ? visibleCols : [],
+      'dashboardPrefs.sortCol':     sortCol  || null,
+      'dashboardPrefs.sortDir':     sortDir  || 'asc',
+    });
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * POST /api/auth/avatar
  * Protected — upload/replace profile photo
  */
@@ -102,4 +125,4 @@ const updateAvatar = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe, updateProfile, updateAvatar };
+module.exports = { register, login, getMe, updateProfile, updateAvatar, saveDashboardPrefs };

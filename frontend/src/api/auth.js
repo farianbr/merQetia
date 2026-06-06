@@ -8,3 +8,4 @@ export const updateProfile = (data) => api.put('/auth/profile', data);
 export const uploadAvatar = (formData) => api.post('/auth/avatar', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
 });
+export const saveDashboardPrefs = (prefs) => api.put('/auth/dashboard-prefs', prefs);

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { NotificationProvider, useNotifications } from '../context/NotificationContext';
 import {
   LuLayoutDashboard, LuWrench, LuShoppingBag, LuFileText,
-  LuSettings, LuLogOut, LuBell, LuPlus,
+  LuSettings, LuLogOut, LuBell, LuPlus, LuUser,
 } from 'react-icons/lu';
 
 const DashIcon     = () => <LuLayoutDashboard size={17} />;
@@ -15,6 +15,7 @@ const SettingsIcon = () => <LuSettings       size={17} />;
 const LogoutIcon   = () => <LuLogOut         size={17} />;
 const BellIcon     = () => <LuBell           size={18} />;
 const PlusIcon     = () => <LuPlus           size={15} />;
+const ProfileIcon  = () => <LuUser           size={17} />;
 
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Dashboard', Icon: DashIcon },
@@ -99,6 +100,13 @@ function ClientLayoutInner({ children }) {
 
         <div className="cl-sidebar-footer">
           <Link
+            to="/profile"
+            className={`cl-nav-item ${location.pathname === '/profile' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
+          >
+            <ProfileIcon />
+            Profile
+          </Link>
+          <Link
             to="/settings"
             className={`cl-nav-item ${location.pathname === '/settings' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
           >
@@ -121,7 +129,7 @@ function ClientLayoutInner({ children }) {
               <button className="cl-icon-btn" aria-label="Notifications" onClick={handleBellClick}>
                 <BellIcon />
                 {unreadCount > 0 && (
-                  <span className="cl-notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                  <span className="cl-notif-badge" aria-hidden="true" />
                 )}
               </button>
               {bellOpen && (

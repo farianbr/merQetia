@@ -38,6 +38,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Admin dashboard column preferences
+    dashboardPrefs: {
+      colOrder:    { type: [String], default: [] },
+      visibleCols: { type: [String], default: [] },
+      sortCol:     { type: String,   default: null },
+      sortDir:     { type: String,   default: 'asc' },
+    },
     // Used for employee invite flow
     isInvited: {
       type: Boolean,
