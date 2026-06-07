@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getOrders } from '../../api/orders';
-import { getInvoices } from '../../api/invoices';
 import {
   LuUser, LuMail, LuCalendar, LuSettings, LuCircleCheck,
   LuClock, LuShoppingBag, LuTag,
@@ -28,19 +27,6 @@ const PILL_STYLES = {
   completed:  { bg: '#d1fae5', color: '#065f46' },
 };
 
-function fmtMoney(n) {
-  if (!n) return '$0';
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}k`;
-  return `$${n.toLocaleString()}`;
-}
-
-function fmtDate(iso) {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-
 const STATUS_CONFIG = {
   placed:    { label: 'Pending',     color: '#9ca3af' },
   assigned:  { label: 'Assigned',    color: '#3b82f6' },
@@ -50,11 +36,12 @@ const STATUS_CONFIG = {
   completed: { label: 'Completed',   color: '#10b981' },
 };
 
-function StatCard({ icon: Icon, label, value, color }) {
+function StatCard({ icon, label, value, color }) {
+  const IconComponent = icon;
   return (
     <div className="pf-stat-card">
       <div className="pf-stat-icon" style={{ background: color + '18', color }}>
-        <Icon size={20} />
+        <IconComponent size={20} />
       </div>
       <div className="pf-stat-info">
         <span className="pf-stat-value">{value}</span>
