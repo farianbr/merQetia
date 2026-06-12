@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getMyAssignments } from '../../api/orders';
 import {
   LuUser, LuMail, LuCalendar, LuBriefcase, LuCircleCheck,
-  LuSettings, LuTag, LuStar, LuZap,
+  LuSettings, LuTag, LuShoppingBag, LuZap,
 } from 'react-icons/lu';
 
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
@@ -101,7 +101,7 @@ export default function EmployeeProfile() {
             <h2 className="pf-section-title" style={{ marginBottom: '.9rem' }}>Performance</h2>
             <div className="pf-perf-list">
               <div className="pf-perf-row">
-                <span className="pf-perf-icon" style={{ color: '#f59e0b' }}><LuStar size={16} /></span>
+                <span className="pf-perf-icon" style={{ color: '#f59e0b' }}><LuShoppingBag size={16} /></span>
                 <span className="pf-perf-label">Total Assigned</span>
                 <span className="pf-perf-value">{loading ? '…' : totalAssigned}</span>
               </div>

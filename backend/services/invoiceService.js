@@ -102,6 +102,67 @@ const markAsPaid = async (id) => {
 };
 
 /**
+ * Client-initiated demo payment — verifies ownership then marks paid.
+ * No real card processing; this is a placeholder for Stripe integration.
+ */
+const clientPayInvoice = async (invoiceId, clientId) => {
+  const invoice = await Invoice.findById(invoiceId).populate({
+    path: 'orderId',
+    select: 'clientId',
+  });
+
+  if (!invoice) {
+    const err = new Error('Invoice not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const orderClientId = invoice.orderId?.clientId?.toString();
+  if (orderClientId !== clientId.toString()) {
+    const err = new Error('Access denied');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (invoice.status === 'paid') {
+    const err = new Error('Invoice is already paid');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  invoice.status = 'paid';
+  invoice.paidAt = new Date();
+  await invoice.save();
+
+  return invoice;
+};
+
+/**
+ * Void (delete) an unpaid invoice — admin only.
+ * The auto-generated full invoice for an order cannot be voided while the
+ * order is still active; only admin-created partial/advance invoices or full
+ * invoices on cancelled orders should be deleted via this path.
+ */
+const voidInvoice = async (invoiceId) => {
+  const invoice = await Invoice.findById(invoiceId);
+
+  if (!invoice) {
+    const err = new Error('Invoice not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (invoice.status === 'paid') {
+    const err = new Error('Paid invoices cannot be voided');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  await Invoice.deleteOne({ _id: invoiceId });
+  return { voided: true };
+};
+
+/**
  * Create a partial/advance invoice for an order (admin use)
  */
 const createPartialInvoice = async ({ orderId, amount, type, notes }) => {
@@ -128,5 +189,7 @@ module.exports = {
   getClientInvoices,
   getInvoiceById,
   markAsPaid,
+  clientPayInvoice,
+  voidInvoice,
   createPartialInvoice,
 };

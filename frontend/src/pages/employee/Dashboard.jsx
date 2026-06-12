@@ -19,9 +19,10 @@ const STATUS_CONFIG = {
 };
 
 const EMP_GROUPS = [
-  { key: 'active',    label: 'Active',    color: '#0073ea', statuses: ['assigned', 'accepted'] },
-  { key: 'completed', label: 'Completed', color: '#00c875', statuses: ['completed'] },
-  { key: 'rejected',  label: 'Declined',  color: '#e2445c', statuses: ['rejected'] },
+  { key: 'new',       label: 'New Requests',  color: '#ff8000', statuses: ['assigned'] },
+  { key: 'active',    label: 'Active Orders',  color: '#0073ea', statuses: ['accepted'] },
+  { key: 'completed', label: 'Completed',      color: '#00c875', statuses: ['completed'] },
+  { key: 'declined',  label: 'Declined',       color: '#e2445c', statuses: ['rejected'] },
 ];
 
 const COLUMN_DEFS = [
@@ -280,7 +281,7 @@ function EmpOrderGroup({
   onColDrop,
   onAddColClick,
 }) {
-  const [collapsed, setCollapsed] = useState(group.key !== 'active');
+  const [collapsed, setCollapsed] = useState(group.key === 'completed' || group.key === 'declined');
   const [footerTip, setFooterTip] = useState(null);
   const [dragOverCol, setDragOverCol] = useState(null);
   const footerTipTimer = useRef(null);

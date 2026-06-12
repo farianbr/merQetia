@@ -3,6 +3,8 @@ const {
   getClientInvoices,
   getInvoiceById,
   markAsPaid,
+  clientPayInvoice,
+  voidInvoice,
   createPartialInvoice,
 } = require('../services/invoiceService');
 const { generatePDF } = require('../utils/pdfGenerator');
@@ -73,6 +75,32 @@ const pay = async (req, res, next) => {
 };
 
 /**
+ * PATCH /api/invoices/:id/client-pay
+ * Client only — demo payment (marks invoice paid after basic validation)
+ */
+const clientPay = async (req, res, next) => {
+  try {
+    const invoice = await clientPayInvoice(req.params.id, req.user.id);
+    res.status(200).json({ success: true, invoice });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/invoices/:id
+ * Admin only — void (delete) an unpaid invoice
+ */
+const destroyInvoice = async (req, res, next) => {
+  try {
+    await voidInvoice(req.params.id);
+    res.status(200).json({ success: true, message: 'Invoice voided' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * POST /api/invoices
  * Admin only — create a partial or advance invoice for an order
  */
@@ -125,4 +153,4 @@ const downloadPDF = async (req, res, next) => {
   }
 };
 
-module.exports = { getInvoices, getInvoice, pay, createInvoice, downloadPDF };
+module.exports = { getInvoices, getInvoice, pay, clientPay, destroyInvoice, createInvoice, downloadPDF };

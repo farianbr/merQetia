@@ -10,7 +10,13 @@ const buildDateFilter = (field, startDate, endDate) => {
   if (!startDate && !endDate) return {};
   const range = {};
   if (startDate) range.$gte = new Date(startDate);
-  if (endDate) range.$lte = new Date(endDate);
+  if (endDate) {
+    // Date-only strings parse to midnight — extend to end of day
+    // so records created on the end date itself are included.
+    const end = new Date(endDate);
+    end.setUTCHours(23, 59, 59, 999);
+    range.$lte = end;
+  }
   return { [field]: range };
 };
 
@@ -114,11 +120,12 @@ const getOrderStats = async ({ startDate, endDate } = {}) => {
 
   const result = await Order.aggregate([
     { $match: { ...dateFilter } },
-    { $group: { _id: '$status', count: { $sum: 1 }, revenue: { $sum: '$totalPrice' } } },
+    { $group: { _id: '$status', count: { $sum: 1 } } },
     { $sort: { _id: 1 } },
   ]);
 
-  const stats = { pending: 0, assigned: 0, in_progress: 0, completed: 0 };
+  // Keys must match the Order schema status enum
+  const stats = { placed: 0, assigned: 0, accepted: 0, rejected: 0, completed: 0 };
   let totalOrders = 0;
 
   for (const item of result) {
@@ -136,7 +143,8 @@ const getTopServices = async ({ startDate, endDate, limit = 5 } = {}) => {
   const dateFilter = buildDateFilter('createdAt', startDate, endDate);
 
   const result = await Order.aggregate([
-    { $match: { ...dateFilter } },
+    // Rejected orders never generate revenue — exclude them
+    { $match: { status: { $ne: 'rejected' }, ...dateFilter } },
     { $unwind: '$services' },
     {
       $lookup: {

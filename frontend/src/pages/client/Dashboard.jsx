@@ -33,7 +33,7 @@ function OrderCard({ order, isActive, onClick }) {
   const ds = getDisplayStatus(order);
   const color = STATUS_COLORS[ds] || '#6b7280';
   const label = STATUS_LABEL[ds] || ds;
-  const isPaid = order.invoice?.isPaid ?? order.isPaid;
+  const isPaid = order.invoice?.status === 'paid';
 
   return (
     <button

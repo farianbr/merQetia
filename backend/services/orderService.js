@@ -2,6 +2,7 @@ const Order = require('../models/Order');
 const Service = require('../models/Service');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const Invoice = require('../models/Invoice');
 const { generateOrderSummary } = require('./aiService');
 const { generateInvoice } = require('./invoiceService');
 const { sendOrderConfirmation, sendNewOrderAdminAlert, sendOrderAssignedEmployee } = require('./emailService');
@@ -148,7 +149,8 @@ const getAllOrders = async ({ page = 1, limit = 20, status } = {}) => {
 };
 
 /**
- * Get orders belonging to a specific client
+ * Get orders belonging to a specific client — attaches the primary invoice
+ * (type=full, or most recent) to each order so clients can see payment status.
  */
 const getClientOrders = async ({ clientId, page = 1, limit = 20 }) => {
   const skip = (page - 1) * limit;
@@ -165,7 +167,28 @@ const getClientOrders = async ({ clientId, page = 1, limit = 20 }) => {
     Order.countDocuments({ clientId }),
   ]);
 
-  return { orders, pagination: { total, page, pages: Math.ceil(total / limit) } };
+  // Attach primary invoice to each order
+  const orderIds = orders.map((o) => o._id);
+  const invoices = await Invoice.find({ orderId: { $in: orderIds } })
+    .select('orderId status paidAt amount invoiceNumber type')
+    .sort({ createdAt: 1 });
+
+  const invoiceByOrder = {};
+  for (const inv of invoices) {
+    const key = inv.orderId.toString();
+    // Full invoice takes priority; otherwise keep first (oldest = auto-generated)
+    if (!invoiceByOrder[key] || inv.type === 'full') {
+      invoiceByOrder[key] = inv;
+    }
+  }
+
+  const ordersWithInvoice = orders.map((o) => {
+    const obj = o.toObject();
+    obj.invoice = invoiceByOrder[o._id.toString()] || null;
+    return obj;
+  });
+
+  return { orders: ordersWithInvoice, pagination: { total, page, pages: Math.ceil(total / limit) } };
 };
 
 /**
