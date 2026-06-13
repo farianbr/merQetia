@@ -50,7 +50,7 @@ const getServiceById = async (id) => {
  */
 const updateService = async (id, data) => {
   const service = await Service.findByIdAndUpdate(id, data, {
-    new: true,           // Return updated document
+    returnDocument: 'after', // Return updated document
     runValidators: true, // Run schema validators on update
   });
   if (!service) {

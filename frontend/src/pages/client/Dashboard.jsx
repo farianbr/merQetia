@@ -76,7 +76,7 @@ function OrderDetail({ order, onClose }) {
   );
 
   return (
-    <div className="pw-detail">
+    <div className="card pw-detail">
       {/* Header */}
       <div className="pw-detail-header">
         <div>
@@ -175,7 +175,7 @@ export default function ClientDashboard() {
 
       <div className="pw-workspace">
         {/* Left: active orders list */}
-        <div className="pw-list-col">
+        <div className="card pw-list-col">
           <div className="pw-list-header">
             <span className="pw-list-title">Active Orders</span>
             {orders.length > 0 && (

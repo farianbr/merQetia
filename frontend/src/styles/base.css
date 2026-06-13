@@ -1,0 +1,18 @@
+/* ════════════════════════════════════════════════════════════
+   BASE — reset, document defaults, root layout primitives
+   ════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+input, textarea, select, button { font-family: inherit; font-size: inherit; }
+
+body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; }
+
+/* Page shell */
+.page { display: flex; flex-direction: column; gap: 1.5rem; }
+.page h1 { font-size: 1.6rem; font-weight: 700; margin: 0 0 .25rem; }
+
+/* Base button reset (variants live in primitives.css) */
+button { cursor: pointer; border: none; border-radius: var(--radius); font-size: .9rem; padding: .5rem 1.1rem; transition: background .15s; }
+/* Icons inside buttons must never be shrunk to 0 by a collapsed flex content box
+   (e.g. fixed-size icon buttons that reset the default padding above). */
+button svg { flex-shrink: 0; }

@@ -48,7 +48,7 @@ function ContactForm() {
         <label className="form-label">Subject</label>
         <input
           type="text"
-          className="hc-input"
+          className="input hc-input"
           placeholder="What do you need help with?"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
@@ -60,7 +60,7 @@ function ContactForm() {
       <div className="form-group">
         <label className="form-label">Message</label>
         <textarea
-          className="hc-input hc-textarea"
+          className="input hc-input hc-textarea"
           placeholder="Describe your question or issue in detail…"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -141,7 +141,7 @@ function MeetingForm() {
         <label className="form-label">Meeting topic</label>
         <input
           type="text"
-          className="hc-input"
+          className="input hc-input"
           placeholder="e.g. Project kick-off, Review campaign results…"
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
@@ -155,7 +155,7 @@ function MeetingForm() {
           <label className="form-label">Preferred date</label>
           <input
             type="date"
-            className="hc-input"
+            className="input hc-input"
             value={preferredDate}
             min={today}
             onChange={(e) => setPreferredDate(e.target.value)}
@@ -166,7 +166,7 @@ function MeetingForm() {
         <div className="form-group">
           <label className="form-label">Preferred time</label>
           <select
-            className="hc-input"
+            className="input hc-input"
             value={preferredTime}
             onChange={(e) => setPreferredTime(e.target.value)}
             disabled={loading}
@@ -182,7 +182,7 @@ function MeetingForm() {
       <div className="form-group">
         <label className="form-label">Additional notes <span className="hc-optional">(optional)</span></label>
         <textarea
-          className="hc-input hc-textarea hc-textarea--sm"
+          className="input hc-input hc-textarea hc-textarea--sm"
           placeholder="Anything you'd like us to prepare or know beforehand…"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -215,7 +215,7 @@ export default function HelpCenter() {
       </div>
 
       <div className="hc-grid">
-        <div className="hc-card">
+        <div className="card hc-card">
           <div className="hc-card-head">
             <span className="hc-card-icon hc-card-icon--mail">
               <LuMail size={20} />
@@ -228,7 +228,7 @@ export default function HelpCenter() {
           <ContactForm />
         </div>
 
-        <div className="hc-card">
+        <div className="card hc-card">
           <div className="hc-card-head">
             <span className="hc-card-icon hc-card-icon--cal">
               <LuCalendarDays size={20} />

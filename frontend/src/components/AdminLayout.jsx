@@ -8,7 +8,7 @@ import { getEmployees, getClients } from '../api/admin';
 import {
   LuLayoutDashboard, LuShoppingBag, LuWrench, LuFileText,
   LuChartBar, LuDollarSign, LuUsers, LuUserCheck, LuSettings, LuLogOut, LuBell,
-  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuUser,
+  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuUser, LuMenu,
 } from 'react-icons/lu';
 
 function mapOrders(r) {
@@ -70,6 +70,7 @@ function AdminLayoutInner({ children }) {
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
 
   const bellRef = useRef(null);
@@ -96,6 +97,9 @@ function AdminLayoutInner({ children }) {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  // Close the mobile nav drawer whenever the route changes
+  useEffect(() => { setNavOpen(false); }, [location.pathname]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -132,8 +136,11 @@ function AdminLayoutInner({ children }) {
 
   return (
     <div className="cl-shell">
+      {/* Mobile drawer overlay */}
+      {navOpen && <div className="cl-nav-overlay" onClick={() => setNavOpen(false)} />}
+
       {/* ── Sidebar ── */}
-      <aside className="cl-sidebar">
+      <aside className={`cl-sidebar ${navOpen ? 'cl-sidebar--open' : ''}`}>
         <div className="cl-sidebar-brand">
           <a href="http://merqetia.nl/" className="cl-brand-name">merQetia</a>
           <span className="cl-brand-sub">Admin</span>
@@ -172,6 +179,9 @@ function AdminLayoutInner({ children }) {
         <header className="cl-topbar">
           {/* Left: back/forward + search + dark mode */}
           <div className="cl-topbar-left">
+            <button className="cl-icon-btn cl-hamburger" aria-label="Open menu" onClick={() => setNavOpen(true)} title="Menu">
+              <LuMenu size={18} />
+            </button>
             <button className="cl-icon-btn cl-nav-hist-btn" aria-label="Go back" onClick={() => navigate(-1)} title="Go back">
               <LuArrowLeft size={16} />
             </button>

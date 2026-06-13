@@ -160,6 +160,7 @@ export default function AdminEmployees() {
         </div>
       )}
 
+      <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
@@ -200,6 +201,7 @@ export default function AdminEmployees() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

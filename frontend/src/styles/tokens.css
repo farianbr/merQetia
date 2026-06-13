@@ -1,0 +1,40 @@
+/* ════════════════════════════════════════════════════════════
+   DESIGN TOKENS — colors, radius, shadow, and shared breakpoints
+   ════════════════════════════════════════════════════════════ */
+
+:root {
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --danger: #ef4444;
+  --secondary: #6b7280;
+  --bg: #f9fafb;
+  --card-bg: #ffffff;
+  --text: #111827;
+  --text-muted: #6b7280;
+  --border: #e5e7eb;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+
+[data-theme="dark"] {
+  --bg: #0d1117;
+  --card-bg: #161b27;
+  --text: #e2e8f0;
+  --text-muted: #8b9abf;
+  --border: #2a3248;
+  --shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+
+/* ── Standard responsive breakpoints ──────────────────────────
+   Use these literal values in @media queries app-wide so layouts
+   collapse consistently. CSS custom properties can't be used inside
+   media queries, so they live here as documentation only:
+
+     --bp-sm: 640px    phones
+     --bp-md: 768px    tablets  (primary sidebar/grid collapse point)
+     --bp-lg: 1024px   small laptops
+     --bp-xl: 1280px   desktop
+
+   Prefer max-width queries at 768px and 480px for page work unless a
+   component genuinely needs a different point.
+   ──────────────────────────────────────────────────────────── */

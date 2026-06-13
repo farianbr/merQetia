@@ -60,7 +60,7 @@ export default function ClientServices() {
 
       <div className="csc-grid">
         {services.filter((s) => s.isActive).map((s) => (
-          <div className="csc-card" key={s._id}>
+          <div className="card csc-card" key={s._id}>
             <div className="csc-accent" />
             <div className="csc-body">
               <h3 className="csc-name">{s.name}</h3>

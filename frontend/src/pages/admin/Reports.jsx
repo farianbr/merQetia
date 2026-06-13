@@ -64,7 +64,7 @@ const fmtDate = (s) =>
 
 function KpiCard({ icon, iconBg, iconColor, label, value, valueColor, sub }) {
   return (
-    <div className="rp-kpi">
+    <div className="card rp-kpi">
       <span className="rp-kpi-icon" style={{ background: iconBg, color: iconColor }}>
         {icon}
       </span>
@@ -170,7 +170,7 @@ export default function AdminReports() {
 
       {/* ── Period filter ── */}
       <div className="rp-toolbar">
-        <div className="rp-presets">
+        <div className="card rp-presets">
           {PRESETS.map((p) => (
             <button
               key={p.key}
@@ -350,6 +350,7 @@ export default function AdminReports() {
             <span className="rp-card-total">by order count</span>
           </div>
           {topServices.length > 0 ? (
+            <div className="table-scroll">
             <table className="rp-table">
               <thead>
                 <tr>
@@ -392,6 +393,7 @@ export default function AdminReports() {
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
             <p className="rp-empty">No service activity in this period.</p>
           )}

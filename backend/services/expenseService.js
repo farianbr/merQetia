@@ -54,7 +54,7 @@ const getExpenseById = async (id) => {
  */
 const updateExpense = async (id, data) => {
   const expense = await Expense.findByIdAndUpdate(id, data, {
-    new: true,
+    returnDocument: 'after',
     runValidators: true,
   });
   if (!expense) {

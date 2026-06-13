@@ -103,7 +103,7 @@ export default function AdminSettings() {
 
       <div className="st-grid">
         {/* Profile Photo */}
-        <section className="st-card">
+        <section className="card st-card">
           <h2 className="st-section-title">Profile Photo</h2>
           <div className="st-avatar-row">
             <div className="st-avatar-wrap">
@@ -135,7 +135,7 @@ export default function AdminSettings() {
         </section>
 
         {/* Account Info */}
-        <section className="st-card">
+        <section className="card st-card">
           <h2 className="st-section-title">Account Info</h2>
           <div className="st-form">
             <div className="form-group">
@@ -163,7 +163,7 @@ export default function AdminSettings() {
         </section>
 
         {/* Change Password */}
-        <section className="st-card">
+        <section className="card st-card">
           <h2 className="st-section-title">Change Password</h2>
           <div className="st-form">
             <div className="form-group">
@@ -206,7 +206,7 @@ export default function AdminSettings() {
         </section>
 
         {/* Danger Zone */}
-        <section className="st-card st-card--danger">
+        <section className="card st-card st-card--danger">
           <h2 className="st-section-title st-section-title--danger">Danger Zone</h2>
           <p className="st-danger-desc">
             These actions are irreversible. Please be certain before proceeding.

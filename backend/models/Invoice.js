@@ -60,7 +60,7 @@ invoiceSchema.pre('save', async function () {
   const counter = await Counter.findByIdAndUpdate(
     'invoiceNumber',
     { $inc: { seq: 1 } },
-    { new: true, upsert: true }
+    { returnDocument: 'after', upsert: true }
   );
 
   this.invoiceNumber = `INV-${String(counter.seq).padStart(5, '0')}`;

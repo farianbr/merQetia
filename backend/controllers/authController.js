@@ -118,7 +118,7 @@ const updateAvatar = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-    const user = await User.findByIdAndUpdate(req.user.id, { avatar: avatarUrl }, { new: true });
+    const user = await User.findByIdAndUpdate(req.user.id, { avatar: avatarUrl }, { returnDocument: 'after' });
     res.json({ success: true, avatar: avatarUrl, user });
   } catch (err) {
     next(err);

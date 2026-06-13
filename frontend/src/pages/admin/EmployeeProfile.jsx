@@ -126,6 +126,7 @@ export default function AdminEmployeeProfile() {
             {orders.length === 0 ? (
               <p className="acp-empty">No orders assigned yet.</p>
             ) : (
+              <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -161,6 +162,7 @@ export default function AdminEmployeeProfile() {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>

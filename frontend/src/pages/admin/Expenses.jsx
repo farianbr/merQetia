@@ -116,6 +116,7 @@ export default function AdminExpenses() {
         </div>
       )}
 
+      <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
@@ -141,6 +142,7 @@ export default function AdminExpenses() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

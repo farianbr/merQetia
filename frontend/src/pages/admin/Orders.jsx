@@ -175,7 +175,7 @@ export default function AdminOrders() {
 
       {/* ── Stat cards ── */}
       <div className="om-stats">
-        <div className="om-stat-card">
+        <div className="card om-stat-card">
           <div className="om-stat-top">
             <div className="om-stat-icon" style={{ background: '#eff6ff' }}><LuLayoutGrid size={20} color="#3b82f6" /></div>
             <TrendBadge
@@ -186,7 +186,7 @@ export default function AdminOrders() {
           <span className="om-stat-count">{loading ? '—' : stats.active}</span>
           <span className="om-stat-label">Total Active Orders</span>
         </div>
-        <div className="om-stat-card">
+        <div className="card om-stat-card">
           <div className="om-stat-top">
             <div className="om-stat-icon" style={{ background: '#f0fdf4' }}><LuTrendingUp size={20} color="#10b981" /></div>
             <TrendBadge
@@ -197,7 +197,7 @@ export default function AdminOrders() {
           <span className="om-stat-count">{loading ? '—' : `${stats.effThis}%`}</span>
           <span className="om-stat-label">Efficiency this Month</span>
         </div>
-        <div className="om-stat-card">
+        <div className="card om-stat-card">
           <div className="om-stat-top">
             <div className="om-stat-icon" style={{ background: '#f5f3ff' }}><LuCircleCheck size={20} color="#8b5cf6" /></div>
             <TrendBadge
@@ -238,7 +238,7 @@ export default function AdminOrders() {
       ) : filtered.length === 0 ? (
         <p className="empty-state">No orders match your search.</p>
       ) : (
-        <div className="om-table-wrap">
+        <div className="card om-table-wrap">
           <table className="om-table">
             <thead>
               <tr>

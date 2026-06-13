@@ -1,0 +1,130 @@
+/* ════════════════════════════════════════════════════════════
+   PRIMITIVES — shared, reusable building blocks.
+   Prefer these over per-component classes. New components should
+   compose these; existing component styles migrate here over time.
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Buttons ── */
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+.btn-secondary { background: var(--border); color: var(--text); }
+.btn-secondary:hover { background: #d1d5db; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #dc2626; }
+.btn-sm { font-size: .8rem; padding: .3rem .7rem; margin-right: .4rem; }
+.btn-link { color: var(--primary); text-decoration: none; font-size: .9rem; }
+.btn-fab { position: fixed; bottom: 2rem; right: 2rem; border-radius: 50px; padding: .7rem 1.4rem; }
+
+/* Icon-only button: fixed square, no inherited padding, centered glyph.
+   Use for any button whose only child is an icon. */
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; border-radius: 6px;
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text-muted); cursor: pointer; flex-shrink: 0;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.btn-icon:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Auth ── */
+.auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 1.25rem; }
+.auth-card { background: var(--card-bg); border-radius: var(--radius); padding: 2.5rem; width: 100%; max-width: 420px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 1.2rem; }
+@media (max-width: 480px) { .auth-card { padding: 1.75rem 1.4rem; } }
+.auth-card h1 { color: var(--primary); font-size: 1.5rem; }
+.auth-footer { font-size: .9rem; color: var(--text-muted); }
+.auth-footer a { color: var(--primary); }
+
+/* ── Forms ── */
+.form-group { display: flex; flex-direction: column; gap: .3rem; }
+.form-group label { font-size: .85rem; font-weight: 500; color: var(--text-muted); }
+.form-group input, .form-group textarea, .form-group select { padding: .55rem .75rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: .95rem; width: 100%; background: #fff; }
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.field-error { font-size: .8rem; color: var(--danger); }
+.error-msg { background: #fee2e2; color: #b91c1c; padding: .6rem 1rem; border-radius: var(--radius); font-size: .9rem; }
+
+/* ── Tables ── */
+.data-table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.data-table th { background: var(--bg); padding: .7rem 1rem; text-align: left; font-size: .85rem; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.data-table td { padding: .7rem 1rem; border-bottom: 1px solid var(--border); font-size: .9rem; }
+.data-table tr:last-child td { border-bottom: none; }
+.action-cell-inner { display: flex; gap: .4rem; align-items: center; }
+
+/* Horizontal-scroll wrapper for tables on narrow screens.
+   Wrap any .data-table in <div class="table-scroll"> to avoid overflow. */
+.table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ── Stat grid ── */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+.stat-card { background: var(--card-bg); border-radius: var(--radius); padding: 1.2rem 1.5rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: .3rem; }
+.stat-count { font-size: 1.8rem; font-weight: 700; }
+.stat-label { font-size: .85rem; color: var(--text-muted); text-transform: capitalize; }
+.total-note { font-size: .9rem; color: var(--text-muted); }
+
+/* ── Badges ── */
+.badge { display: inline-block; padding: .2rem .6rem; border-radius: 100px; font-size: .8rem; font-weight: 600; color: #fff; white-space: nowrap; }
+.badge-green { background: #10b981; }
+.badge-yellow { background: #f59e0b; }
+
+/* ── Section ── */
+.section { display: flex; flex-direction: column; gap: 1rem; }
+.section-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.section h2 { font-size: 1.2rem; font-weight: 600; }
+
+/* ── Cards ── */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.2rem; }
+.order-card, .service-card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.2rem; display: flex; flex-direction: column; gap: .8rem; }
+.order-card-header { display: flex; justify-content: space-between; align-items: center; }
+.order-id { font-weight: 700; color: var(--text-muted); font-size: .85rem; }
+.order-summary { font-size: .85rem; color: var(--text-muted); line-height: 1.4; }
+.order-card-footer { margin-top: auto; }
+.service-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+.service-card-header h3 { font-size: 1rem; font-weight: 600; }
+.service-description { font-size: .85rem; color: var(--text-muted); line-height: 1.5; }
+.service-card-footer { margin-top: auto; }
+.service-price { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+.category-tag { background: #ede9fe; color: #6d28d9; font-size: .75rem; padding: .15rem .5rem; border-radius: 100px; white-space: nowrap; }
+
+/* ── Card surface ── Compose for any panel needing the standard
+   card-bg + border + radius + shadow treatment. Self-contained:
+   includes its own dark override so adopters get dark mode for free.
+   (Many bespoke *-card classes in index.css duplicate this block and
+   their own `[data-theme="dark"]` override — migrate them onto .card.) */
+.card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+[data-theme="dark"] .card { background: var(--card-bg); border-color: var(--border); }
+
+/* ── Toolbar ── header row with a title on the left and actions on the
+   right that wraps cleanly on small screens. */
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+/* ── Modal ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+.modal { background: var(--card-bg); border-radius: var(--radius); padding: 2rem; width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 1rem; max-height: 90vh; overflow-y: auto; }
+.modal--wide { max-width: 720px; }
+.modal h2 { font-size: 1.2rem; font-weight: 600; }
+.modal-actions { display: flex; justify-content: flex-end; gap: .75rem; margin-top: .5rem; }
+
+/* ── Inputs ── */
+.input { padding: .55rem .75rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: .95rem; width: 100%; background: #fff; }
+.input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+.form-label { font-size: .85rem; font-weight: 500; color: var(--text-muted); display: block; margin-bottom: .25rem; }
+
+/* ── Compact field ── Bordered control surface for search boxes, date
+   pickers and inline inputs that size themselves (width/padding set by the
+   consumer). Like .input but without the forced full width. Self-contained
+   dark override so adopters get dark mode for free. */
+.field { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card-bg); color: var(--text); }
+.field:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+[data-theme="dark"] .field { background: #0f1420; border-color: var(--border); color: var(--text); }
+
+/* ── Filter / inline forms ── */
+.filter-bar { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; background: var(--card-bg); padding: 1rem; border-radius: var(--radius); box-shadow: var(--shadow); }
+.inline-form { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+.inline-form input { padding: .3rem .6rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: .85rem; width: 160px; }
+
+/* ── Status / misc text ── */
+.loading { display: flex; align-items: center; justify-content: center; height: 40vh; color: var(--text-muted); }
+.page-error { color: var(--danger); padding: 1rem; }
+.empty-state { color: var(--text-muted); font-size: .9rem; }
+.subtitle { color: var(--text-muted); font-size: .9rem; margin: 0; line-height: 1.5; }

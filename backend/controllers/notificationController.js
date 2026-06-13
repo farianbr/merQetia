@@ -38,7 +38,7 @@ const markRead = async (req, res, next) => {
     const notif = await Notification.findOneAndUpdate(
       { _id: req.params.id, userId: req.user.id },
       { read: true },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!notif) return res.status(404).json({ success: false, message: 'Notification not found' });
     res.json({ success: true, notification: notif });

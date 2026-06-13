@@ -71,7 +71,7 @@ function CreateInvoiceModal({ onClose, onCreated }) {
               <p style={{ fontSize: '.85rem', color: 'var(--text-muted)' }}>Loading orders…</p>
             ) : (
               <select
-                className="rp-date-input"
+                className="field rp-date-input"
                 style={{ width: '100%' }}
                 value={form.orderId}
                 onChange={(e) => setForm((f) => ({ ...f, orderId: e.target.value, amount: '' }))}
@@ -102,7 +102,7 @@ function CreateInvoiceModal({ onClose, onCreated }) {
           <div className="form-group">
             <label className="form-label">Type</label>
             <select
-              className="rp-date-input"
+              className="field rp-date-input"
               style={{ width: '100%' }}
               value={form.type}
               onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
@@ -117,7 +117,7 @@ function CreateInvoiceModal({ onClose, onCreated }) {
             <label className="form-label">Amount ($)</label>
             <input
               type="number"
-              className="rp-date-input"
+              className="field rp-date-input"
               style={{ width: '100%' }}
               placeholder="0.00"
               min="0.01"
@@ -132,7 +132,7 @@ function CreateInvoiceModal({ onClose, onCreated }) {
           <div className="form-group">
             <label className="form-label">Notes (optional)</label>
             <textarea
-              className="rp-date-input"
+              className="field rp-date-input"
               style={{ width: '100%', height: '72px', resize: 'vertical' }}
               placeholder="e.g. 50% advance payment"
               value={form.notes}
@@ -282,7 +282,7 @@ export default function AdminInvoices() {
 
       {/* Filters */}
       <div className="inv-toolbar">
-        <div className="rp-presets">
+        <div className="card rp-presets">
           {['all', 'paid', 'unpaid'].map((s) => (
             <button
               key={s}
@@ -299,7 +299,7 @@ export default function AdminInvoices() {
           <LuSearch size={14} className="inv-search-icon" />
           <input
             type="text"
-            className="inv-search-input"
+            className="field inv-search-input"
             placeholder="Search client or invoice #…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -314,6 +314,7 @@ export default function AdminInvoices() {
           No invoices match your filters.
         </div>
       ) : (
+        <div className="table-scroll">
         <table className="data-table">
           <thead>
             <tr>
@@ -405,6 +406,7 @@ export default function AdminInvoices() {
             })}
           </tbody>
         </table>
+        </div>
       )}
 
       {showCreate && (

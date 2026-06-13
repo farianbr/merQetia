@@ -124,6 +124,7 @@ export default function AdminClientProfile() {
             {orders.length === 0 ? (
               <p className="acp-empty">No orders yet.</p>
             ) : (
+              <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -157,12 +158,14 @@ export default function AdminClientProfile() {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
 
           {invoices.length > 0 && (
             <div className="acp-card">
               <h2 className="acp-section-title">Invoices</h2>
+              <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -187,6 +190,7 @@ export default function AdminClientProfile() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>

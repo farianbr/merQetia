@@ -69,7 +69,7 @@ export default function ClientInvoices() {
 
       {error && <p className="page-error">{error}</p>}
 
-      <div className="inv-summary-bar">
+      <div className="card inv-summary-bar">
         <div className="inv-summary-item">
           <span className="inv-summary-label">Paid</span>
           <span className="inv-summary-val inv-summary-val--paid">{usd.format(totalPaid)}</span>
@@ -104,7 +104,7 @@ export default function ClientInvoices() {
               : null;
 
             return (
-              <div key={inv._id} className={`inv-card ${isPaid ? 'inv-card--paid' : 'inv-card--unpaid'}`}>
+              <div key={inv._id} className={`card inv-card ${isPaid ? 'inv-card--paid' : 'inv-card--unpaid'}`}>
                 <div className="inv-card-left">
                   <span className={`inv-status-dot ${isPaid ? 'inv-status-dot--paid' : 'inv-status-dot--unpaid'}`} />
                   <div className="inv-card-info">

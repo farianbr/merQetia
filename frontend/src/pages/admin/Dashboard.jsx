@@ -403,7 +403,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
             <div className="mq-panel-input-row">
               <input
                 type="text"
-                className="mq-panel-input-text"
+                className="field mq-panel-input-text"
                 placeholder="Write an update…"
                 value={text}
                 onChange={(e) => setText(e.target.value)}

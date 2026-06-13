@@ -6,7 +6,7 @@ import CommandPalette from './CommandPalette';
 import { getMyAssignments } from '../api/orders';
 import {
   LuLayoutDashboard, LuClipboardCheck, LuBell, LuSettings, LuLogOut, LuUser,
-  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun,
+  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu,
 } from 'react-icons/lu';
 
 function mapOrders(r) {
@@ -50,7 +50,10 @@ function EmployeeLayoutInner({ children }) {
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => { setNavOpen(false); }, [location.pathname]);
 
   const bellRef = useRef(null);
   const profileRef = useRef(null);
@@ -109,8 +112,11 @@ function EmployeeLayoutInner({ children }) {
 
   return (
     <div className="cl-shell">
+      {/* Mobile drawer overlay */}
+      {navOpen && <div className="cl-nav-overlay" onClick={() => setNavOpen(false)} />}
+
       {/* ── Sidebar ── */}
-      <aside className="cl-sidebar">
+      <aside className={`cl-sidebar ${navOpen ? 'cl-sidebar--open' : ''}`}>
         <div className="cl-sidebar-brand">
           <a href="http://merqetia.nl/" className="cl-brand-name">merQetia</a>
           <span className="cl-brand-sub">Employee</span>
@@ -156,6 +162,9 @@ function EmployeeLayoutInner({ children }) {
         <header className="cl-topbar">
           {/* Left: back/forward + search + dark mode */}
           <div className="cl-topbar-left">
+            <button className="cl-icon-btn cl-hamburger" aria-label="Open menu" onClick={() => setNavOpen(true)} title="Menu">
+              <LuMenu size={18} />
+            </button>
             <button className="cl-icon-btn cl-nav-hist-btn" aria-label="Go back" onClick={() => navigate(-1)} title="Go back">
               <LuArrowLeft size={16} />
             </button>

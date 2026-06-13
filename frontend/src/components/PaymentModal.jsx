@@ -84,14 +84,14 @@ export default function PaymentModal({ invoice, onClose, onPaid }) {
 
             <div className="pm-demo-hint">
               <LuLock size={11} />
-              Demo mode — use any test card (e.g.&nbsp;<strong>4242 4242 4242 4242</strong>, exp&nbsp;<strong>12/28</strong>, CVV&nbsp;<strong>123</strong>)
+              Demo mode — use any test card (e.g. 4242 4242 4242 4242, exp: 12/28; cvv: 123)
             </div>
 
             <form className="pm-form" onSubmit={handleSubmit}>
               <div className="pm-field">
                 <label className="pm-label">Card Number</label>
                 <input
-                  className="pm-input pm-input--mono"
+                  className="input pm-input pm-input--mono"
                   type="text"
                   inputMode="numeric"
                   placeholder="1234 5678 9012 3456"
@@ -107,7 +107,7 @@ export default function PaymentModal({ invoice, onClose, onPaid }) {
                 <div className="pm-field">
                   <label className="pm-label">Expiry</label>
                   <input
-                    className="pm-input pm-input--mono"
+                    className="input pm-input pm-input--mono"
                     type="text"
                     placeholder="MM/YY"
                     value={expiry}
@@ -120,7 +120,7 @@ export default function PaymentModal({ invoice, onClose, onPaid }) {
                 <div className="pm-field">
                   <label className="pm-label">CVV</label>
                   <input
-                    className="pm-input pm-input--mono"
+                    className="input pm-input pm-input--mono"
                     type="text"
                     inputMode="numeric"
                     placeholder="123"
@@ -136,7 +136,7 @@ export default function PaymentModal({ invoice, onClose, onPaid }) {
               <div className="pm-field">
                 <label className="pm-label">Cardholder Name</label>
                 <input
-                  className="pm-input"
+                  className="input pm-input"
                   type="text"
                   placeholder="Full name on card"
                   value={name}
