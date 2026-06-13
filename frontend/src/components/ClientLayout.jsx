@@ -2,32 +2,47 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { NotificationProvider, useNotifications } from '../context/NotificationContext';
+import CommandPalette from './CommandPalette';
+import { getOrders } from '../api/orders';
 import {
   LuLayoutDashboard, LuWrench, LuShoppingBag, LuFileText,
-  LuSettings, LuLogOut, LuBell, LuPlus, LuUser,
+  LuLogOut, LuBell, LuPlus, LuUser, LuSettings, LuLifeBuoy,
+  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun,
 } from 'react-icons/lu';
 
-const DashIcon     = () => <LuLayoutDashboard size={17} />;
-const ServicesIcon = () => <LuWrench         size={17} />;
-const OrdersIcon   = () => <LuShoppingBag    size={17} />;
-const InvoicesIcon = () => <LuFileText       size={17} />;
-const SettingsIcon = () => <LuSettings       size={17} />;
-const LogoutIcon   = () => <LuLogOut         size={17} />;
-const BellIcon     = () => <LuBell           size={18} />;
-const PlusIcon     = () => <LuPlus           size={15} />;
-const ProfileIcon  = () => <LuUser           size={17} />;
+const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
+function mapOrders(r) {
+  return (r.data.orders || r.data).map((o) => ({
+    _id: o._id,
+    shortId: o._id.slice(-6).toUpperCase(),
+    label: (o.services || []).map((s) => s.name).join(', ') || '—',
+  }));
+}
+
+// ── Nav items (main) ────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { path: '/dashboard', label: 'Dashboard', Icon: DashIcon },
-  { path: '/services',  label: 'Services',  Icon: ServicesIcon },
-  { path: '/orders',    label: 'Orders',    Icon: OrdersIcon },
-  { path: '/invoices',  label: 'Invoices',  Icon: InvoicesIcon },
+  { path: '/dashboard', label: 'Dashboard', Icon: LuLayoutDashboard },
+  { path: '/services',  label: 'Services',  Icon: LuWrench },
+  { path: '/orders',    label: 'Orders',    Icon: LuShoppingBag },
+  { path: '/invoices',  label: 'Invoices',  Icon: LuFileText },
+];
+
+// ── Command palette search items ────────────────────────────────────
+const SEARCH_ITEMS = [
+  { label: 'Dashboard',      path: '/dashboard',     Icon: LuLayoutDashboard, group: 'Pages' },
+  { label: 'Services',       path: '/services',      Icon: LuWrench,          group: 'Pages' },
+  { label: 'My Orders',      path: '/orders',        Icon: LuShoppingBag,     group: 'Pages' },
+  { label: 'Invoices',       path: '/invoices',      Icon: LuFileText,        group: 'Pages' },
+  { label: 'Help Center',    path: '/help',          Icon: LuLifeBuoy,        group: 'Pages' },
+  { label: 'My Profile',     path: '/profile',       Icon: LuUser,            group: 'Account' },
+  { label: 'Settings',       path: '/settings',      Icon: LuSettings,        group: 'Account' },
+  { label: 'Notifications',  path: '/notifications', Icon: LuBell,            group: 'Account' },
 ];
 
 function fmtNotifTime(iso) {
   const d = new Date(iso);
-  const now = new Date();
-  const diff = (now - d) / 1000;
+  const diff = (Date.now() - d) / 1000;
   if (diff < 60) return 'just now';
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
@@ -42,15 +57,39 @@ function ClientLayoutInner({ children }) {
   const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
 
   const [bellOpen, setBellOpen] = useState(false);
-  const bellRef = useRef(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
 
-  // Close dropdown when clicking outside
+  const bellRef = useRef(null);
+  const profileRef = useRef(null);
+
+  // Apply dark mode to document root
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
+  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e) => {
       if (bellRef.current && !bellRef.current.contains(e.target)) setBellOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Global Ctrl+K / Cmd+K shortcut
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
   }, []);
 
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -64,15 +103,17 @@ function ClientLayoutInner({ children }) {
   const handleBellClick = () => {
     setBellOpen((v) => {
       const next = !v;
-      // Mark all read when closing the dropdown
       if (!next && unreadCount > 0) markAllRead();
       return next;
     });
+    setProfileOpen(false);
   };
 
   const initials = user?.name
     ? user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : '?';
+
+  const avatarSrc = user?.avatar ? `${API_BASE}${user.avatar}` : null;
 
   return (
     <div className="cl-shell">
@@ -83,19 +124,16 @@ function ClientLayoutInner({ children }) {
         </div>
 
         <nav className="cl-nav">
-          {NAV_ITEMS.map((item) => {
-            const NavIcon = item.Icon;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`cl-nav-item ${location.pathname === item.path ? 'cl-nav-item--active' : ''}`}
-              >
-                <NavIcon />
-                {item.label}
-              </Link>
-            );
-          })}
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`cl-nav-item ${location.pathname === item.path ? 'cl-nav-item--active' : ''}`}
+            >
+              <item.Icon size={17} />
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
         <div className="cl-sidebar-footer">
@@ -103,34 +141,68 @@ function ClientLayoutInner({ children }) {
             to="/profile"
             className={`cl-nav-item ${location.pathname === '/profile' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
           >
-            <ProfileIcon />
+            <LuUser size={17} />
             Profile
           </Link>
           <Link
-            to="/settings"
-            className={`cl-nav-item ${location.pathname === '/settings' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
+            to="/help"
+            className={`cl-nav-item ${location.pathname === '/help' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
           >
-            <SettingsIcon />
-            Settings
+            <LuLifeBuoy size={17} />
+            Help Center
           </Link>
-          <button onClick={handleLogout} className="cl-nav-item cl-nav-item--logout">
-            <LogoutIcon />
-            Logout
-          </button>
         </div>
       </aside>
 
       {/* ── Main: topbar + content ── */}
       <div className="cl-main">
         <header className="cl-topbar">
+          {/* Left: back/forward + search + dark mode */}
+          <div className="cl-topbar-left">
+            <button
+              className="cl-icon-btn cl-nav-hist-btn"
+              aria-label="Go back"
+              onClick={() => navigate(-1)}
+              title="Go back"
+            >
+              <LuArrowLeft size={16} />
+            </button>
+            <button
+              className="cl-icon-btn cl-nav-hist-btn"
+              aria-label="Go forward"
+              onClick={() => navigate(1)}
+              title="Go forward"
+            >
+              <LuArrowRight size={16} />
+            </button>
+
+            <button
+              className="cl-search-trigger"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search"
+            >
+              <LuSearch size={14} className="cl-search-trigger-icon" />
+              <span className="cl-search-trigger-text">Search…</span>
+              <kbd className="cl-search-kbd">Ctrl K</kbd>
+            </button>
+
+            <button
+              className="cl-icon-btn cl-dark-btn"
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              onClick={() => setDarkMode((v) => !v)}
+              title={darkMode ? 'Light mode' : 'Dark mode'}
+            >
+              {darkMode ? <LuSun size={16} /> : <LuMoon size={16} />}
+            </button>
+          </div>
+
+          {/* Right: bell + create order + avatar */}
           <div className="cl-topbar-right">
-            {/* Bell with notification dropdown */}
+            {/* Bell */}
             <div className="cl-notif-wrap" ref={bellRef}>
               <button className="cl-icon-btn" aria-label="Notifications" onClick={handleBellClick}>
-                <BellIcon />
-                {unreadCount > 0 && (
-                  <span className="cl-notif-badge" aria-hidden="true" />
-                )}
+                <LuBell size={18} />
+                {unreadCount > 0 && <span className="cl-notif-badge" aria-hidden="true" />}
               </button>
               {bellOpen && (
                 <div className="cl-notif-dropdown">
@@ -156,18 +228,16 @@ function ClientLayoutInner({ children }) {
                             <span className="cl-notif-item-title">{n.title}</span>
                             <span className="cl-notif-item-time">{fmtNotifTime(n.createdAt)}</span>
                           </div>
-                          <span className="cl-notif-item-body">{n.type === 'status' ? n.body : (n.typeLabel || n.body)}</span>
+                          <span className="cl-notif-item-body">
+                            {n.type === 'status' ? n.body : (n.typeLabel || n.body)}
+                          </span>
                         </div>
                       ))
                     )}
                   </div>
                   {notifications.length > 0 && (
                     <div className="cl-notif-footer">
-                      <Link
-                        to="/notifications"
-                        className="cl-notif-see-all"
-                        onClick={() => setBellOpen(false)}
-                      >
+                      <Link to="/notifications" className="cl-notif-see-all" onClick={() => setBellOpen(false)}>
                         See all notifications →
                       </Link>
                     </div>
@@ -177,20 +247,78 @@ function ClientLayoutInner({ children }) {
             </div>
 
             <Link to="/services" className="cl-create-btn">
-              <PlusIcon />
+              <LuPlus size={15} />
               Create Order
             </Link>
-            <div className="cl-avatar" title={user?.name}>{initials}</div>
+
+            {/* Avatar with profile dropdown */}
+            <div className="cl-profile-wrap" ref={profileRef}>
+              <button
+                className="cl-avatar-btn"
+                onClick={() => { setProfileOpen((v) => !v); setBellOpen(false); }}
+                aria-label="Account menu"
+                aria-expanded={profileOpen}
+              >
+                {avatarSrc ? (
+                  <img src={avatarSrc} alt={user?.name} className="cl-avatar cl-avatar--img" />
+                ) : (
+                  <div className="cl-avatar">{initials}</div>
+                )}
+              </button>
+
+              {profileOpen && (
+                <div className="cl-profile-dropdown">
+                  <div className="cl-profile-dd-head">
+                    <div className="cl-profile-dd-avatar">
+                      {avatarSrc ? (
+                        <img src={avatarSrc} alt={user?.name} className="cl-profile-dd-img" />
+                      ) : (
+                        <div className="cl-profile-dd-initials">{initials}</div>
+                      )}
+                    </div>
+                    <div className="cl-profile-dd-info">
+                      <span className="cl-profile-dd-name">{user?.name}</span>
+                      <span className="cl-profile-dd-email">{user?.email}</span>
+                    </div>
+                  </div>
+                  <div className="cl-profile-dd-sep" />
+                  <Link
+                    to="/settings"
+                    className="cl-profile-dd-item"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    <LuSettings size={15} />
+                    Settings
+                  </Link>
+                  <button
+                    className="cl-profile-dd-item cl-profile-dd-item--logout"
+                    onClick={handleLogout}
+                  >
+                    <LuLogOut size={15} />
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
         <div className="cl-content">{children}</div>
       </div>
+
+      {searchOpen && (
+        <CommandPalette
+          searchItems={SEARCH_ITEMS}
+          onOrderSearch={(id) => navigate('/orders', { state: { selectOrderId: id } })}
+          fetchSuggestions={() => getOrders().then(mapOrders)}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
-// ── Exported wrapper — provides NotificationContext ───────────────────────────
+// ── Exported wrapper ─────────────────────────────────────────────────────────
 export default function ClientLayout({ children }) {
   return (
     <NotificationProvider>

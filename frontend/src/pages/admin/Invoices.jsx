@@ -367,36 +367,38 @@ export default function AdminInvoices() {
                     {fmtDate(inv.createdAt)}
                   </td>
                   <td className="action-cell">
-                    <button
-                      className="inv-action-btn"
-                      title="Download PDF"
-                      disabled={downloading === inv._id}
-                      onClick={() => handleDownload(inv)}
-                    >
-                      <LuDownload size={14} />
-                    </button>
-                    {!isPaid && (
-                      <>
-                        <button
-                          className="btn-sm btn-primary"
-                          title="Mark as paid"
-                          disabled={isActing}
-                          onClick={() => handleMarkPaid(inv._id)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}
-                        >
-                          <LuCheck size={13} />
-                          {actionLoading === inv._id + '-pay' ? '…' : 'Mark Paid'}
-                        </button>
-                        <button
-                          className="inv-void-btn"
-                          title="Void invoice"
-                          disabled={isActing}
-                          onClick={() => handleVoid(inv._id)}
-                        >
-                          <LuTrash2 size={13} />
-                        </button>
-                      </>
-                    )}
+                    <div className="action-cell-inner">
+                      <button
+                        className="inv-action-btn"
+                        title="Download PDF"
+                        disabled={downloading === inv._id}
+                        onClick={() => handleDownload(inv)}
+                      >
+                        <LuDownload size={14} />
+                      </button>
+                      {!isPaid && (
+                        <>
+                          <button
+                            className="btn-sm btn-primary"
+                            title="Mark as paid"
+                            disabled={isActing}
+                            onClick={() => handleMarkPaid(inv._id)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}
+                          >
+                            <LuCheck size={13} />
+                            {actionLoading === inv._id + '-pay' ? '…' : 'Mark Paid'}
+                          </button>
+                          <button
+                            className="inv-void-btn"
+                            title="Void invoice"
+                            disabled={isActing}
+                            onClick={() => handleVoid(inv._id)}
+                          >
+                            <LuTrash2 size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

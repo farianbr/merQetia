@@ -79,4 +79,32 @@ const getEmployees = async (req, res, next) => {
   }
 };
 
-module.exports = { invite, register, getEmployees };
+/**
+ * GET /api/employees/:id
+ * Admin only — single employee profile with assigned orders
+ */
+const getEmployeeById = async (req, res, next) => {
+  try {
+    const User = require('../models/User');
+    const Order = require('../models/Order');
+
+    const employee = await User.findOne({ _id: req.params.id, role: 'employee' })
+      .select('name email departments avatar createdAt')
+      .lean();
+
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+    const orders = await Order.find({ assignedEmployee: req.params.id })
+      .populate('services', 'name')
+      .populate('clientId', 'name email')
+      .select('_id status createdAt totalPrice deliveryDate services clientId')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.status(200).json({ success: true, employee, orders });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { invite, register, getEmployees, getEmployeeById };

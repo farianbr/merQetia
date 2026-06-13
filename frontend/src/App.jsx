@@ -18,6 +18,7 @@ import ClientInvoices from './pages/client/Invoices';
 import ClientSettings from './pages/client/Settings';
 import ClientNotifications from './pages/client/Notifications';
 import ClientProfile from './pages/client/Profile';
+import ClientHelpCenter from './pages/client/HelpCenter';
 
 // Admin
 import AdminDashboard from './pages/admin/Dashboard';
@@ -28,6 +29,9 @@ import AdminInvoices from './pages/admin/Invoices';
 import AdminReports from './pages/admin/Reports';
 import AdminExpenses from './pages/admin/Expenses';
 import AdminEmployees from './pages/admin/Employees';
+import AdminEmployeeProfile from './pages/admin/EmployeeProfile';
+import AdminClients from './pages/admin/Clients';
+import AdminClientProfile from './pages/admin/ClientProfile';
 import AdminSettings from './pages/admin/Settings';
 import AdminNotifications from './pages/admin/Notifications';
 
@@ -63,6 +67,7 @@ function AppRoutes() {
       <Route path="/settings"       element={<ProtectedRoute roles={['client']}><ClientLayout><ClientSettings /></ClientLayout></ProtectedRoute>} />
       <Route path="/profile"         element={<ProtectedRoute roles={['client']}><ClientLayout><ClientProfile /></ClientLayout></ProtectedRoute>} />
       <Route path="/notifications"  element={<ProtectedRoute roles={['client']}><ClientLayout><ClientNotifications /></ClientLayout></ProtectedRoute>} />
+      <Route path="/help"           element={<ProtectedRoute roles={['client']}><ClientLayout><ClientHelpCenter /></ClientLayout></ProtectedRoute>} />
 
       {/* ── Admin ── */}
       <Route path="/admin"               element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminDashboard /></AdminLayout></ProtectedRoute>} />
@@ -72,7 +77,10 @@ function AppRoutes() {
       <Route path="/admin/invoices"      element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminInvoices /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/reports"       element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminReports /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/expenses"      element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminExpenses /></AdminLayout></ProtectedRoute>} />
-      <Route path="/admin/employees"     element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminEmployees /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/employees"      element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminEmployees /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/employees/:id" element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminEmployeeProfile /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/clients"       element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminClients /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/clients/:id"   element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminClientProfile /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/settings"      element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminSettings /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/notifications"  element={<ProtectedRoute roles={['admin']}><AdminLayout><AdminNotifications /></AdminLayout></ProtectedRoute>} />
 

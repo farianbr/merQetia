@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getEmployees, inviteEmployee } from '../../api/admin';
 import { LuCircleCheck } from 'react-icons/lu';
 
@@ -167,13 +168,14 @@ export default function AdminEmployees() {
             <th>Departments</th>
             <th>Active Tasks</th>
             <th>Completed Tasks</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {loadingList ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9CA3AF' }}>Loading…</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9CA3AF' }}>Loading…</td></tr>
           ) : employees.length === 0 ? (
-            <tr><td colSpan={5} style={{ textAlign: 'center', color: '#9CA3AF' }}>No employees yet</td></tr>
+            <tr><td colSpan={6} style={{ textAlign: 'center', color: '#9CA3AF' }}>No employees yet</td></tr>
           ) : (
             employees.map((emp) => (
               <tr key={emp._id}>
@@ -188,6 +190,11 @@ export default function AdminEmployees() {
                 </td>
                 <td>{emp.activeTasks}</td>
                 <td>{emp.completedTasks}</td>
+                <td>
+                  <Link to={`/admin/employees/${emp._id}`} className="btn-secondary" style={{ fontSize: '.8rem', padding: '.28rem .65rem' }}>
+                    View Profile
+                  </Link>
+                </td>
               </tr>
             ))
           )}
