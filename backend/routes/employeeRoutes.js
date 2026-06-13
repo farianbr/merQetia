@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { invite, register, getEmployees, getEmployeeById } = require('../controllers/employeeController');
+const { invite, register, getEmployees, getEmployeeById, updateDepartments } = require('../controllers/employeeController');
 const { protect } = require('../middlewares/authMiddleware');
 const { authorize } = require('../middlewares/roleMiddleware');
 const { validateInvite, validateEmployeeRegister } = require('../middlewares/validators');
@@ -16,5 +16,8 @@ router.post('/register', validateEmployeeRegister, register);
 
 // Admin — single employee profile
 router.get('/:id', protect, authorize('admin'), getEmployeeById);
+
+// Admin — set an employee's departments
+router.patch('/:id/departments', protect, authorize('admin'), updateDepartments);
 
 module.exports = router;

@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getOrders } from '../../api/orders';
 import {
   LuUser, LuMail, LuCalendar, LuSettings, LuCircleCheck,
-  LuClock, LuShoppingBag,
+  LuClock, LuShoppingBag, LuPhone, LuMapPin,
 } from 'react-icons/lu';
 
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
@@ -31,6 +31,11 @@ export default function ClientProfile() {
   const memberSince = user?.createdAt
     ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : null;
+
+  const addr = user?.address || {};
+  const addressLine = [addr.street, addr.city, addr.state, addr.postalCode, addr.country]
+    .filter(Boolean)
+    .join(', ');
 
   useEffect(() => {
     getOrders({ limit: 200 })
@@ -158,6 +163,20 @@ export default function ClientProfile() {
                 <div>
                   <span className="pf-info-label">Member Since</span>
                   <span className="pf-info-value">{memberSince || '—'}</span>
+                </div>
+              </div>
+              <div className="pf-info-row">
+                <LuPhone size={15} className="pf-info-icon" />
+                <div>
+                  <span className="pf-info-label">Phone</span>
+                  <span className="pf-info-value">{user?.phone || '—'}</span>
+                </div>
+              </div>
+              <div className="pf-info-row">
+                <LuMapPin size={15} className="pf-info-icon" />
+                <div>
+                  <span className="pf-info-label">Address</span>
+                  <span className="pf-info-value">{addressLine || '—'}</span>
                 </div>
               </div>
             </div>

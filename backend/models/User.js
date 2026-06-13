@@ -28,11 +28,26 @@ const userSchema = new mongoose.Schema(
       enum: ['client', 'admin', 'employee'],
       default: 'client',
     },
-    // Departments this employee belongs to (employee role only)
+    // Departments this employee belongs to (employee role only).
+    // Stored as department names; the set is managed dynamically via the
+    // Department collection, so no fixed enum here.
     departments: {
       type: [String],
-      enum: ['Creative', 'Strategy', 'Media Buying'],
       default: [],
+    },
+    // Client contact + address details (client role only)
+    phone: {
+      type: String,
+      trim: true,
+      maxlength: [30, 'Phone cannot exceed 30 characters'],
+      default: '',
+    },
+    address: {
+      street:     { type: String, trim: true, maxlength: 120, default: '' },
+      city:       { type: String, trim: true, maxlength: 80,  default: '' },
+      state:      { type: String, trim: true, maxlength: 80,  default: '' },
+      postalCode: { type: String, trim: true, maxlength: 20,  default: '' },
+      country:    { type: String, trim: true, maxlength: 80,  default: '' },
     },
     avatar: {
       type: String,

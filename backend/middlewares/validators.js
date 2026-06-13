@@ -63,12 +63,12 @@ exports.validateExpense = (req, res, next) => {
 };
 
 exports.validateInvite = (req, res, next) => {
-  const { email, name, departments } = req.body;
+  const { email, departments } = req.body;
   if (!email || !EMAIL_RE.test(email)) return fail(res, 'Valid email is required');
-  if (!name || !String(name).trim()) return fail(res, 'Name is required');
-  const validDepts = ['Creative', 'Strategy', 'Media Buying'];
-  if (!Array.isArray(departments) || departments.length === 0 || !departments.every((d) => validDepts.includes(d)))
-    return fail(res, 'At least one valid department is required (Creative, Strategy, Media Buying)');
+  // Departments are managed dynamically — accept any non-empty set of names.
+  // (Name is collected when the employee completes registration.)
+  if (!Array.isArray(departments) || departments.length === 0 || !departments.every((d) => String(d).trim()))
+    return fail(res, 'At least one department is required');
   next();
 };
 

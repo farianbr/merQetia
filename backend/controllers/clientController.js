@@ -60,7 +60,7 @@ const getClientById = async (req, res, next) => {
     const Invoice = require('../models/Invoice');
 
     const client = await User.findOne({ _id: req.params.id, role: 'client' })
-      .select('name email avatar createdAt')
+      .select('name email avatar createdAt phone address')
       .lean();
 
     if (!client) return res.status(404).json({ message: 'Client not found' });

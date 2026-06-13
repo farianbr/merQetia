@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { getClients } from '../../api/admin';
-import { LuSearch, LuUser, LuShoppingBag, LuExternalLink } from 'react-icons/lu';
+import { LuSearch, LuUser, LuShoppingBag, LuExternalLink, LuUsers, LuActivity } from 'react-icons/lu';
 
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
@@ -30,6 +30,12 @@ export default function AdminClients() {
     );
   }, [clients, search]);
 
+  const stats = useMemo(() => ({
+    total: clients.length,
+    active: clients.filter((c) => c.activeOrders > 0).length,
+    orders: clients.reduce((s, c) => s + (c.totalOrders || 0), 0),
+  }), [clients]);
+
   return (
     <div className="page">
       <div className="section-header">
@@ -50,6 +56,32 @@ export default function AdminClients() {
       </div>
 
       {error && <p className="page-error">{error}</p>}
+
+      {!loading && clients.length > 0 && (
+        <div className="ac-summary">
+          <div className="card ac-summary-card">
+            <span className="ac-summary-icon" style={{ color: '#6366f1' }}><LuUsers size={18} /></span>
+            <div>
+              <span className="ac-summary-value">{stats.total}</span>
+              <span className="ac-summary-label">Total clients</span>
+            </div>
+          </div>
+          <div className="card ac-summary-card">
+            <span className="ac-summary-icon" style={{ color: '#10b981' }}><LuActivity size={18} /></span>
+            <div>
+              <span className="ac-summary-value">{stats.active}</span>
+              <span className="ac-summary-label">With active orders</span>
+            </div>
+          </div>
+          <div className="card ac-summary-card">
+            <span className="ac-summary-icon" style={{ color: '#f59e0b' }}><LuShoppingBag size={18} /></span>
+            <div>
+              <span className="ac-summary-value">{stats.orders}</span>
+              <span className="ac-summary-label">Total orders</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="loading">Loading…</div>

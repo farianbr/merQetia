@@ -57,11 +57,21 @@ const getMe = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
   try {
-    const { name, email, currentPassword, newPassword } = req.body;
+    const { name, email, currentPassword, newPassword, phone, address } = req.body;
     const user = await User.findById(req.user.id).select('+password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     if (name) user.name = name.trim().slice(0, 100);
+
+    if (phone !== undefined) user.phone = String(phone).trim().slice(0, 30);
+
+    if (address && typeof address === 'object') {
+      const a = user.address || {};
+      ['street', 'city', 'state', 'postalCode', 'country'].forEach((k) => {
+        if (address[k] !== undefined) a[k] = String(address[k]).trim().slice(0, 120);
+      });
+      user.address = a;
+    }
 
     if (email && email.toLowerCase() !== user.email) {
       const exists = await User.findOne({ email: email.toLowerCase() });

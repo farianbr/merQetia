@@ -5,13 +5,46 @@ import { updateProfile, uploadAvatar } from '../../api/auth';
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 export default function ClientSettings() {
-  const { user } = useAuth();
+  const { user, setSession } = useAuth();
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [profileMsg, setProfileMsg] = useState('');
   const [profileErr, setProfileErr] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Contact & address
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [address, setAddress] = useState({
+    street: user?.address?.street || '',
+    city: user?.address?.city || '',
+    state: user?.address?.state || '',
+    postalCode: user?.address?.postalCode || '',
+    country: user?.address?.country || '',
+  });
+  const [savingAddr, setSavingAddr] = useState(false);
+  const [addrMsg, setAddrMsg] = useState('');
+  const [addrErr, setAddrErr] = useState('');
+
+  const handleSaveAddress = async () => {
+    setSavingAddr(true);
+    setAddrErr('');
+    setAddrMsg('');
+    try {
+      const r = await updateProfile({ phone, address });
+      const updatedUser = r.data.user;
+      const token = localStorage.getItem('token');
+      if (token) setSession(token, updatedUser);
+      else localStorage.setItem('user', JSON.stringify(updatedUser));
+      setAddrMsg('Contact details updated.');
+    } catch (err) {
+      setAddrErr(err.response?.data?.message || 'Failed to update contact details.');
+    } finally {
+      setSavingAddr(false);
+    }
+  };
+
+  const setAddr = (k) => (e) => setAddress((a) => ({ ...a, [k]: e.target.value }));
 
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -150,6 +183,46 @@ export default function ClientSettings() {
             {profileMsg && <p className="st-msg st-msg--ok">{profileMsg}</p>}
             <button className="btn-primary" onClick={handleSaveProfile} disabled={savingProfile || !name || !email}>
               {savingProfile ? 'Saving…' : 'Save Changes'}
+            </button>
+          </div>
+        </section>
+
+        {/* Contact & Address */}
+        <section className="card st-card">
+          <h2 className="st-section-title">Contact &amp; Address</h2>
+          <div className="st-form">
+            <div className="form-group">
+              <label>Phone</label>
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 123 4567" />
+            </div>
+            <div className="form-group">
+              <label>Street Address</label>
+              <input type="text" value={address.street} onChange={setAddr('street')} placeholder="123 Main St, Apt 4" />
+            </div>
+            <div className="st-addr-row">
+              <div className="form-group">
+                <label>City</label>
+                <input type="text" value={address.city} onChange={setAddr('city')} />
+              </div>
+              <div className="form-group">
+                <label>State / Region</label>
+                <input type="text" value={address.state} onChange={setAddr('state')} />
+              </div>
+            </div>
+            <div className="st-addr-row">
+              <div className="form-group">
+                <label>Postal Code</label>
+                <input type="text" value={address.postalCode} onChange={setAddr('postalCode')} />
+              </div>
+              <div className="form-group">
+                <label>Country</label>
+                <input type="text" value={address.country} onChange={setAddr('country')} />
+              </div>
+            </div>
+            {addrErr && <p className="error-msg">{addrErr}</p>}
+            {addrMsg && <p className="st-msg st-msg--ok">{addrMsg}</p>}
+            <button className="btn-primary" onClick={handleSaveAddress} disabled={savingAddr}>
+              {savingAddr ? 'Saving…' : 'Save Contact Details'}
             </button>
           </div>
         </section>

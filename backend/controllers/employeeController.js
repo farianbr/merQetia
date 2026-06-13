@@ -107,4 +107,32 @@ const getEmployeeById = async (req, res, next) => {
   }
 };
 
-module.exports = { invite, register, getEmployees, getEmployeeById };
+/**
+ * PATCH /api/employees/:id/departments
+ * Admin only — set the departments an employee belongs to.
+ */
+const updateDepartments = async (req, res, next) => {
+  try {
+    const User = require('../models/User');
+    const { departments } = req.body;
+
+    if (!Array.isArray(departments)) {
+      return res.status(400).json({ success: false, message: 'departments must be an array' });
+    }
+    const clean = [...new Set(departments.map((d) => String(d).trim()).filter(Boolean))];
+
+    const employee = await User.findOneAndUpdate(
+      { _id: req.params.id, role: 'employee' },
+      { departments: clean },
+      { new: true },
+    ).select('name email departments');
+
+    if (!employee) return res.status(404).json({ success: false, message: 'Employee not found' });
+
+    res.status(200).json({ success: true, employee });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { invite, register, getEmployees, getEmployeeById, updateDepartments };

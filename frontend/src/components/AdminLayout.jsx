@@ -8,7 +8,7 @@ import { getEmployees, getClients } from '../api/admin';
 import {
   LuLayoutDashboard, LuShoppingBag, LuWrench, LuFileText,
   LuChartBar, LuDollarSign, LuUsers, LuUserCheck, LuSettings, LuLogOut, LuBell,
-  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuUser, LuMenu,
+  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu, LuLifeBuoy,
 } from 'react-icons/lu';
 
 function mapOrders(r) {
@@ -35,7 +35,7 @@ const NAV_ITEMS = [
   { path: '/admin/invoices',   label: 'Invoices',  Icon: LuFileText },
   { path: '/admin/reports',    label: 'Reports',   Icon: LuChartBar },
   { path: '/admin/expenses',   label: 'Expenses',  Icon: LuDollarSign },
-  { path: '/admin/employees',  label: 'Employees', Icon: LuUsers },
+  { path: '/admin/employees',  label: 'Team',      Icon: LuUsers },
   { path: '/admin/clients',    label: 'Clients',   Icon: LuUserCheck },
 ];
 
@@ -46,8 +46,9 @@ const SEARCH_ITEMS = [
   { label: 'Invoices',      path: '/admin/invoices',          Icon: LuFileText,        group: 'Pages' },
   { label: 'Reports',       path: '/admin/reports',           Icon: LuChartBar,        group: 'Pages' },
   { label: 'Expenses',      path: '/admin/expenses',          Icon: LuDollarSign,      group: 'Pages' },
-  { label: 'Employees',     path: '/admin/employees',         Icon: LuUsers,           group: 'Pages' },
+  { label: 'Team',          path: '/admin/employees',         Icon: LuUsers,           group: 'Pages' },
   { label: 'Clients',       path: '/admin/clients',           Icon: LuUserCheck,       group: 'Pages' },
+  { label: 'Support Center', path: '/admin/support',          Icon: LuLifeBuoy,        group: 'Pages' },
   { label: 'Settings',      path: '/admin/settings',          Icon: LuSettings,        group: 'Account' },
   { label: 'Notifications', path: '/admin/notifications',     Icon: LuBell,            group: 'Account' },
 ];
@@ -161,16 +162,12 @@ function AdminLayoutInner({ children }) {
 
         <div className="cl-sidebar-footer">
           <Link
-            to="/admin/settings"
-            className={`cl-nav-item ${location.pathname === '/admin/settings' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
+            to="/admin/support"
+            className={`cl-nav-item ${location.pathname.startsWith('/admin/support') ? 'cl-nav-item--active' : ''}`}
           >
-            <LuSettings size={17} />
-            <span>Settings</span>
+            <LuLifeBuoy size={17} />
+            <span>Support Center</span>
           </Link>
-          <button onClick={handleLogout} className="cl-nav-item cl-nav-item--logout">
-            <LuLogOut size={17} />
-            <span>Logout</span>
-          </button>
         </div>
       </aside>
 
@@ -280,9 +277,6 @@ function AdminLayoutInner({ children }) {
                   <div className="cl-profile-dd-sep" />
                   <Link to="/admin/settings" className="cl-profile-dd-item" onClick={() => setProfileOpen(false)}>
                     <LuSettings size={15} /> Settings
-                  </Link>
-                  <Link to="/admin/employees" className="cl-profile-dd-item" onClick={() => setProfileOpen(false)}>
-                    <LuUser size={15} /> Employees
                   </Link>
                   <button className="cl-profile-dd-item cl-profile-dd-item--logout" onClick={handleLogout}>
                     <LuLogOut size={15} /> Log out
