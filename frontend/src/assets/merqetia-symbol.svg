@@ -8,7 +8,9 @@
     </linearGradient>
   </defs>
   <g stroke="url(#mqSym)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round">
+    <!-- top bar + right side -->
     <path d="M34 24 H63 A14 14 0 0 1 77 38 V53"/>
+    <!-- left side + bottom + tail -->
     <path d="M23 34 V63 A14 14 0 0 0 37 77 H60 L82 93"/>
   </g>
 </svg>

@@ -713,7 +713,13 @@
   overflow-y: auto;
 }
 .cl-sidebar-brand { padding: 0 1.4rem 1.75rem; text-align: center; }
-.cl-brand-name { display: block; font-size: 1.15rem; font-weight: 800; color: #fff; text-decoration: none; letter-spacing: -.02em; }
+.cl-brand-name { display: inline-flex; font-size: 1.25rem; font-weight: 800; color: #fff; text-decoration: none; letter-spacing: -.02em; }
+
+/* merQetia logo (single inlined SVG; letters inherit currentColor) */
+.mq-logo { display: inline-flex; align-items: center; color: inherit; }
+.mq-logo svg { height: 1.5em; width: auto; display: block; }
+/* On auth screens the heading is brand-purple; the logo letters should be navy */
+.auth-card h1 .mq-logo { color: var(--text); }
 .cl-brand-sub { font-size: .72rem; color: #6b7fad; text-transform: uppercase; letter-spacing: .08em; font-weight: 500; display: block; margin-top: .15rem; }
 
 .cl-nav { display: flex; flex-direction: column; gap: .15rem; padding: 0 .75rem; flex: 1; }
@@ -1496,14 +1502,44 @@
   title: attr(title);
 }
 .mq-employee-empty { font-size: .82rem; color: var(--text-muted); font-style: italic; }
-.mq-assign-select {
-  font-size: .78rem; color: var(--text); background: #fff;
-  border: 1px solid var(--border); border-radius: 6px;
-  padding: .25rem .4rem; cursor: pointer; max-width: 110px;
-  outline: none;
+.mq-assign-trigger {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .78rem; font-weight: 600; color: var(--primary);
+  background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 6px;
+  padding: .3rem .55rem; cursor: pointer; outline: none;
+  transition: background .12s, border-color .12s;
 }
-.mq-assign-select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(79,70,229,.15); }
-.mq-assign-select:disabled { opacity: .6; cursor: not-allowed; }
+.mq-assign-trigger:hover:not(:disabled) { background: #ede9fe; border-color: #c4b5fd; }
+.mq-assign-trigger:disabled { opacity: .6; cursor: not-allowed; }
+
+.mq-assign-menu {
+  position: fixed; z-index: 1000;
+  min-width: 220px; max-height: 280px; overflow-y: auto;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: .35rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.16);
+}
+.mq-assign-menu-empty {
+  padding: .65rem .5rem; font-size: .82rem; color: var(--text-muted);
+  text-align: center; font-style: italic;
+}
+.mq-assign-option {
+  display: flex; align-items: center; gap: .65rem;
+  width: 100%; padding: .45rem .55rem;
+  background: none; border: none; border-radius: 7px;
+  cursor: pointer; text-align: left; transition: background .1s;
+}
+.mq-assign-option:hover { background: #f0edff; }
+.mq-assign-option-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  object-fit: cover;
+}
+.mq-assign-option-avatar--ph {
+  background: linear-gradient(135deg, #4f46e5 0%, #818cf8 100%);
+  color: #fff; font-size: .78rem; font-weight: 700;
+}
+.mq-assign-option-name { font-size: .88rem; font-weight: 500; color: var(--text); }
 
 /* Empty row */
 .mq-empty-row { padding: 1.25rem 1rem; text-align: center; color: var(--text-muted); font-size: .875rem; font-style: italic; }
@@ -2290,6 +2326,11 @@
   border: 1px solid #d1d5db; font-weight: 700;
 }
 
+/* Hide keyboard-shortcut hints on touch / mobile — no physical keyboard */
+@media (max-width: 768px) {
+  .cp-esc-hint, .cp-footer { display: none; }
+}
+
 /* ── Help Center page (hc-*) ────────────────────────────────────────── */
 .hc-hero { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .5rem; }
 .hc-hero h1 { font-size: 1.6rem; font-weight: 700; margin: 0; }
@@ -2570,7 +2611,9 @@
 [data-theme="dark"] .mq-panel-messages { background: #0f1420; }
 [data-theme="dark"] .mq-panel-input { background: var(--card-bg); border-top-color: var(--border); }
 [data-theme="dark"] .mq-msg { background: #1a2035; border-color: var(--border); }
-[data-theme="dark"] .mq-assign-select { background: #0f1420; border-color: var(--border); color: var(--text); }
+[data-theme="dark"] .mq-assign-trigger { background: #1e1b3a; border-color: #312e6b; color: #a5b4fc; }
+[data-theme="dark"] .mq-assign-trigger:hover:not(:disabled) { background: #262252; border-color: #4f46e5; }
+[data-theme="dark"] .mq-assign-option:hover { background: #212840; }
 [data-theme="dark"] .mq-panel-overlay { background: rgba(0,0,0,.6); }
 [data-theme="dark"] .mq-panel-tabs { border-bottom-color: var(--border); }
 [data-theme="dark"] .mq-panel-placeholder { color: var(--text-muted); }

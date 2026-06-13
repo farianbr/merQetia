@@ -48,7 +48,7 @@ const getEmployees = async (req, res, next) => {
     const Order = require('../models/Order');
 
     const employees = await User.find({ role: 'employee' })
-      .select('name email departments isInvited createdAt')
+      .select('name email departments isInvited createdAt avatar')
       .lean();
 
     const employeeIds = employees.map((e) => e._id);

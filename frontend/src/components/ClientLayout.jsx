@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { NotificationProvider, useNotifications } from '../context/NotificationContext';
 import CommandPalette from './CommandPalette';
+import BrandLogo from './BrandLogo';
 import { getOrders } from '../api/orders';
 import {
   LuLayoutDashboard, LuWrench, LuShoppingBag, LuFileText,
@@ -126,7 +127,7 @@ function ClientLayoutInner({ children }) {
       {/* ── Sidebar ── */}
       <aside className={`cl-sidebar ${navOpen ? 'cl-sidebar--open' : ''}`}>
         <div className="cl-sidebar-brand">
-          <a href="http://merqetia.nl/" className="cl-brand-name">merQetia</a>
+          <a href="http://merqetia.nl/" className="cl-brand-name"><BrandLogo /></a>
         </div>
 
         <nav className="cl-nav">

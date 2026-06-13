@@ -93,6 +93,7 @@ function AppRoutes() {
 
       <Route path="/employee/settings"       element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeSettings /></EmployeeLayout></ProtectedRoute>} />
       <Route path="/employee/profile"         element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeProfile /></EmployeeLayout></ProtectedRoute>} />
+      <Route path="/employee/support"         element={<ProtectedRoute roles={['employee']}><EmployeeLayout><AdminSupport /></EmployeeLayout></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useState } from 'react';
+import BrandLogo from '../../components/BrandLogo';
 
 export default function Login() {
   const { login } = useAuth();
@@ -24,7 +25,7 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>merQetia</h1>
+        <h1><BrandLogo /></h1>
         <h2>Sign In</h2>
         {error && <p className="error-msg">{error}</p>}
         <form onSubmit={handleSubmit(onSubmit)}>

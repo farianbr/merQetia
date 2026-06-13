@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { register as apiRegister } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
 import { useState } from 'react';
+import BrandLogo from '../../components/BrandLogo';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function Register() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>merQetia</h1>
+        <h1><BrandLogo /></h1>
         <h2>Create Account</h2>
         {error && <p className="error-msg">{error}</p>}
         <form onSubmit={handleSubmit(onSubmit)}>

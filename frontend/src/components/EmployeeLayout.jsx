@@ -3,10 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { NotificationProvider, useNotifications } from '../context/NotificationContext';
 import CommandPalette from './CommandPalette';
+import BrandLogo from './BrandLogo';
 import { getMyAssignments } from '../api/orders';
 import {
   LuLayoutDashboard, LuClipboardCheck, LuBell, LuSettings, LuLogOut, LuUser,
-  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu,
+  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu, LuLifeBuoy,
 } from 'react-icons/lu';
 
 function mapOrders(r) {
@@ -30,6 +31,7 @@ const SEARCH_ITEMS = [
   { label: 'Profile',       path: '/employee/profile',        Icon: LuUser,            group: 'Account' },
   { label: 'Settings',      path: '/employee/settings',       Icon: LuSettings,        group: 'Account' },
   { label: 'Notifications', path: '/employee/notifications',  Icon: LuBell,            group: 'Account' },
+  { label: 'Support Center', path: '/employee/support',       Icon: LuLifeBuoy,        group: 'Account' },
 ];
 
 function fmtNotifTime(iso) {
@@ -118,7 +120,7 @@ function EmployeeLayoutInner({ children }) {
       {/* ── Sidebar ── */}
       <aside className={`cl-sidebar ${navOpen ? 'cl-sidebar--open' : ''}`}>
         <div className="cl-sidebar-brand">
-          <a href="http://merqetia.nl/" className="cl-brand-name">merQetia</a>
+          <a href="http://merqetia.nl/" className="cl-brand-name"><BrandLogo /></a>
           <span className="cl-brand-sub">Employee</span>
         </div>
 
@@ -137,23 +139,12 @@ function EmployeeLayoutInner({ children }) {
 
         <div className="cl-sidebar-footer">
           <Link
-            to="/employee/profile"
-            className={`cl-nav-item ${location.pathname === '/employee/profile' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
+            to="/employee/support"
+            className={`cl-nav-item ${location.pathname.startsWith('/employee/support') ? 'cl-nav-item--active' : ''}`}
           >
-            <LuUser size={17} />
-            <span>Profile</span>
+            <LuLifeBuoy size={17} />
+            <span>Support Center</span>
           </Link>
-          <Link
-            to="/employee/settings"
-            className={`cl-nav-item ${location.pathname === '/employee/settings' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
-          >
-            <LuSettings size={17} />
-            <span>Settings</span>
-          </Link>
-          <button onClick={handleLogout} className="cl-nav-item cl-nav-item--logout">
-            <LuLogOut size={17} />
-            <span>Logout</span>
-          </button>
         </div>
       </aside>
 

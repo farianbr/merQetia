@@ -18,9 +18,9 @@ const supportLimiter = rateLimit({
 // Client — submit a support message or meeting request
 router.post('/contact', protect, authorize('client'), supportLimiter, createRequest);
 
-// Admin — manage support requests
-router.get('/', protect, authorize('admin'), listRequests);
-router.patch('/:id/status', protect, authorize('admin'), updateStatus);
-router.post('/:id/reply', protect, authorize('admin'), replyToRequest);
+// Admin & employee — manage support requests
+router.get('/', protect, authorize('admin', 'employee'), listRequests);
+router.patch('/:id/status', protect, authorize('admin', 'employee'), updateStatus);
+router.post('/:id/reply', protect, authorize('admin', 'employee'), replyToRequest);
 
 module.exports = router;

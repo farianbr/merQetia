@@ -19,6 +19,9 @@ import {
   LuX,
 } from "react-icons/lu";
 
+const API_BASE =
+  import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
+
 const STATUS_CONFIG = {
   placed: { label: "Not Started", color: "#9ca3af" },
   assigned: { label: "Assigned", color: "#3b82f6" },
@@ -168,9 +171,31 @@ function EmployeeAvatar({ name }) {
 /* ─── Assign Employee Select ─────────────────────────────────────── */
 function AssignSelect({ orderId, employees, onAssign }) {
   const [assigning, setAssigning] = useState(false);
-  const handleChange = async (e) => {
-    const empId = e.target.value;
-    if (!empId) return;
+  const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState(null);
+  const btnRef = useRef(null);
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setMenuPos({ top: r.bottom + 4, left: r.left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    document.addEventListener("mousedown", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+      document.removeEventListener("mousedown", close);
+    };
+  }, [open]);
+
+  const handlePick = async (empId) => {
+    setOpen(false);
     setAssigning(true);
     try {
       await assignEmployeeApi(orderId, empId);
@@ -181,22 +206,61 @@ function AssignSelect({ orderId, employees, onAssign }) {
       setAssigning(false);
     }
   };
+
   return (
-    <select
-      className="mq-assign-select"
-      onChange={handleChange}
-      defaultValue=""
-      disabled={assigning}
-    >
-      <option value="" disabled>
-        Assign
-      </option>
-      {employees.map((emp) => (
-        <option key={emp._id} value={emp._id}>
-          {emp.name}
-        </option>
-      ))}
-    </select>
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className="mq-assign-trigger"
+        disabled={assigning}
+        onClick={() => (open ? setOpen(false) : openMenu())}
+      >
+        {assigning ? "Assigning…" : "Assign"}
+        <LuChevronDown size={12} />
+      </button>
+      {open && menuPos && (
+        <div
+          className="mq-assign-menu"
+          style={{ top: menuPos.top, left: menuPos.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {employees.length === 0 ? (
+            <div className="mq-assign-menu-empty">No employees</div>
+          ) : (
+            employees.map((emp) => {
+              const initials = emp.name
+                .split(" ")
+                .map((w) => w[0])
+                .slice(0, 2)
+                .join("")
+                .toUpperCase();
+              return (
+                <button
+                  key={emp._id}
+                  type="button"
+                  className="mq-assign-option"
+                  onClick={() => handlePick(emp._id)}
+                >
+                  {emp.avatar ? (
+                    <img
+                      src={`${API_BASE}${emp.avatar}`}
+                      alt={emp.name}
+                      className="mq-assign-option-avatar"
+                    />
+                  ) : (
+                    <span className="mq-assign-option-avatar mq-assign-option-avatar--ph">
+                      {initials}
+                    </span>
+                  )}
+                  <span className="mq-assign-option-name">{emp.name}</span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

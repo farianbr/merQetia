@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { registerEmployee } from '../../api/auth';
 import { useAuth } from '../../context/AuthContext';
 import { useState } from 'react';
+import BrandLogo from '../../components/BrandLogo';
 
 export default function RegisterEmployee() {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function RegisterEmployee() {
     return (
       <div className="auth-container">
         <div className="auth-card">
-          <h1>merQetia</h1>
+          <h1><BrandLogo /></h1>
           <h2>Invalid Invite Link</h2>
           <p className="error-msg">This invite link is missing a token. Please request a new invitation.</p>
           <p className="auth-footer"><Link to="/login">Back to login</Link></p>
