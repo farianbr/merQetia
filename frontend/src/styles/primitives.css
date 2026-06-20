@@ -31,7 +31,9 @@
 .auth-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 1.25rem; }
 .auth-card { background: var(--card-bg); border-radius: var(--radius); padding: 2.5rem; width: 100%; max-width: 420px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 1.2rem; }
 @media (max-width: 480px) { .auth-card { padding: 1.75rem 1.4rem; } }
-.auth-card h1 { color: var(--primary); font-size: 1.5rem; }
+/* Logo lockup: wordmark stays neutral (dark on light card / light on dark),
+   only the Q symbol carries brand color — per the logo do's. */
+.auth-card h1 { color: var(--text); font-size: 1.6rem; }
 .auth-footer { font-size: .9rem; color: var(--text-muted); }
 .auth-footer a { color: var(--primary); }
 
@@ -84,7 +86,7 @@
 .service-description { font-size: .85rem; color: var(--text-muted); line-height: 1.5; }
 .service-card-footer { margin-top: auto; }
 .service-price { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
-.category-tag { background: #ede9fe; color: #6d28d9; font-size: .75rem; padding: .15rem .5rem; border-radius: 100px; white-space: nowrap; }
+.category-tag { background: #cffafe; color: #155e75; font-size: .75rem; padding: .15rem .5rem; border-radius: 100px; white-space: nowrap; }
 
 /* ── Card surface ── Compose for any panel needing the standard
    card-bg + border + radius + shadow treatment. Self-contained:

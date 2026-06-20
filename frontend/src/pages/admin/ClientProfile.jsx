@@ -11,7 +11,7 @@ const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://lo
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',     bg: '#fef3c7', color: '#b45309' },
   assigned:  { label: 'Assigned',    bg: '#dbeafe', color: '#1d4ed8' },
-  accepted:  { label: 'In Progress', bg: '#ede9fe', color: '#6d28d9' },
+  accepted:  { label: 'In Progress', bg: '#cffafe', color: '#155e75' },
   overdue:   { label: 'Overdue',     bg: '#fee2e2', color: '#b91c1c' },
   rejected:  { label: 'Rejected',    bg: '#fee2e2', color: '#b91c1c' },
   completed: { label: 'Completed',   bg: '#d1fae5', color: '#065f46' },

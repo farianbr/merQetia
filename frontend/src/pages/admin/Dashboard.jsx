@@ -25,7 +25,7 @@ const API_BASE =
 const STATUS_CONFIG = {
   placed: { label: "Not Started", color: "#9ca3af" },
   assigned: { label: "Assigned", color: "#3b82f6" },
-  accepted: { label: "In Progress", color: "#8b5cf6" },
+  accepted: { label: "In Progress", color: "#06b6d4" },
   overdue: { label: "Overdue", color: "#ef4444" },
   rejected: { label: "Rejected", color: "#ef4444" },
   completed: { label: "Completed", color: "#10b981" },
@@ -383,7 +383,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
                   .join("")
                   .toUpperCase();
                 const avatarBg =
-                  msg.senderRole === "admin" ? "#4f46e5" : "#7c3aed";
+                  msg.senderRole === "admin" ? "#0e7490" : "#0e7490";
                 return (
                   <div key={msg._id} className="mq-msg">
                     <div className="mq-msg-header">

@@ -22,10 +22,14 @@ export function AuthProvider({ children }) {
           const res = await getMe();
           setUser(res.data.user || res.data);
         }
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
+      } catch (err) {
+        // Only drop the session on a genuine auth failure. Transient errors
+        // (429 rate limit, 5xx, network blips) should keep the cached user.
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }

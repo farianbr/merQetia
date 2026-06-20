@@ -12,7 +12,7 @@ const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://lo
 const STATUS_CONFIG = {
   placed:    { label: 'Pending',     color: '#9ca3af' },
   assigned:  { label: 'Assigned',    color: '#3b82f6' },
-  accepted:  { label: 'In Progress', color: '#8b5cf6' },
+  accepted:  { label: 'In Progress', color: '#06b6d4' },
   overdue:   { label: 'Overdue',     color: '#ef4444' },
   rejected:  { label: 'Rejected',    color: '#ef4444' },
   completed: { label: 'Completed',   color: '#10b981' },
@@ -63,7 +63,7 @@ export default function ClientProfile() {
           <div className="pf-emp-hero">
             {avatarSrc
               ? <img src={avatarSrc} alt={user?.name} className="pf-emp-avatar-img" />
-              : <div className="pf-emp-avatar-placeholder" style={{ background: 'linear-gradient(135deg,#4f46e5,#818cf8)' }}>{initials}</div>}
+              : <div className="pf-emp-avatar-placeholder" style={{ background: 'linear-gradient(135deg,#0e7490,#22d3ee)' }}>{initials}</div>}
             <h1 className="pf-emp-name">{user?.name || '—'}</h1>
             <span className="pf-role-badge">Client</span>
             <div className="pf-emp-meta">
@@ -82,7 +82,7 @@ export default function ClientProfile() {
             <h2 className="pf-section-title" style={{ marginBottom: '.9rem' }}>Overview</h2>
             <div className="pf-perf-list">
               <div className="pf-perf-row">
-                <span className="pf-perf-icon" style={{ color: '#6366f1' }}><LuShoppingBag size={16} /></span>
+                <span className="pf-perf-icon" style={{ color: '#0891b2' }}><LuShoppingBag size={16} /></span>
                 <span className="pf-perf-label">Total Orders</span>
                 <span className="pf-perf-value">{loading ? '…' : totalOrders}</span>
               </div>

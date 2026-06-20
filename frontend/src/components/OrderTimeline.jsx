@@ -3,7 +3,7 @@ import { LuCheck, LuX } from 'react-icons/lu';
 const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
-  accepted: '#8b5cf6',
+  accepted: '#06b6d4',
   rejected: '#ef4444',
   completed: '#10b981',
 };

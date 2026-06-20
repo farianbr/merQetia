@@ -60,7 +60,7 @@ export default function AdminClients() {
       {!loading && clients.length > 0 && (
         <div className="ac-summary">
           <div className="card ac-summary-card">
-            <span className="ac-summary-icon" style={{ color: '#6366f1' }}><LuUsers size={18} /></span>
+            <span className="ac-summary-icon" style={{ color: '#0891b2' }}><LuUsers size={18} /></span>
             <div>
               <span className="ac-summary-value">{stats.total}</span>
               <span className="ac-summary-label">Total clients</span>

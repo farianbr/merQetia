@@ -10,7 +10,7 @@ const ACTIVE_STATUSES = new Set(['placed', 'assigned', 'accepted']);
 const STATUS_COLORS = {
   placed:    '#f59e0b',
   assigned:  '#3b82f6',
-  accepted:  '#8b5cf6',
+  accepted:  '#06b6d4',
   overdue:   '#dc2626',
 };
 const STATUS_LABEL = {

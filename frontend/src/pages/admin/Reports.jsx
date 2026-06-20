@@ -14,7 +14,7 @@ import { getReportSummary, getOrderStats, getTopServices } from '../../api/admin
 const STATUS_CONFIG = {
   placed: { label: 'Not Started', color: '#9ca3af' },
   assigned: { label: 'Assigned', color: '#3b82f6' },
-  accepted: { label: 'In Progress', color: '#8b5cf6' },
+  accepted: { label: 'In Progress', color: '#06b6d4' },
   rejected: { label: 'Rejected', color: '#ef4444' },
   completed: { label: 'Completed', color: '#10b981' },
 };
@@ -245,8 +245,8 @@ export default function AdminReports() {
             />
             <KpiCard
               icon={<LuPercent size={19} />}
-              iconBg="#ede9fe"
-              iconColor="#7c3aed"
+              iconBg="#cffafe"
+              iconColor="#0e7490"
               label="Profit Margin"
               value={summary?.profitMargin ?? '0%'}
               sub="Of total revenue"
@@ -273,7 +273,7 @@ export default function AdminReports() {
                   {expInternal > 0 && (
                     <div
                       className="rp-bar-seg"
-                      style={{ flex: expInternal, background: '#6366f1' }}
+                      style={{ flex: expInternal, background: '#0891b2' }}
                     />
                   )}
                 </div>
@@ -287,7 +287,7 @@ export default function AdminReports() {
                     </span>
                   </div>
                   <div className="rp-legend-row">
-                    <span className="rp-dot" style={{ background: '#6366f1' }} />
+                    <span className="rp-dot" style={{ background: '#0891b2' }} />
                     <span className="rp-legend-label">
                       Internal costs (completed orders)
                     </span>

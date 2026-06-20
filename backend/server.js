@@ -47,9 +47,10 @@ app.use((req, res, next) => {
 // -- Global rate limiter
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
+  max: 1500, // generous: an authenticated SPA fires many calls per navigation + polling
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS', // don't count CORS preflight requests
   message: { success: false, message: 'Too many requests, please try again later.' },
 });
 app.use('/api/', globalLimiter);

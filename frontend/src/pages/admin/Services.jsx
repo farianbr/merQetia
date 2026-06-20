@@ -4,7 +4,7 @@ import { getServices, createService, updateService, deleteService } from '../../
 import { LuInfo } from 'react-icons/lu';
 
 const DEPT_COLORS = {
-  Creative: { bg: '#ede9fe', text: '#6d28d9' },
+  Creative: { bg: '#cffafe', text: '#155e75' },
   Strategy: { bg: '#dbeafe', text: '#1d4ed8' },
   'Media Buying': { bg: '#dcfce7', text: '#15803d' },
 };
