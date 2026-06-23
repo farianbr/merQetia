@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus } = require('../controllers/orderController');
+const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus } = require('../controllers/orderController');
 const { protect } = require('../middlewares/authMiddleware');
 const { authorize } = require('../middlewares/roleMiddleware');
 const { validateOrder, validateAssign } = require('../middlewares/validators');
@@ -27,8 +27,17 @@ router.patch('/:id/accept', protect, authorize('employee'), accept);
 // Employee rejects an assigned order
 router.patch('/:id/reject', protect, authorize('employee'), reject);
 
-// Employee marks an accepted order as completed
-router.patch('/:id/complete', protect, authorize('employee'), complete);
+// Employee submits an in-progress order for client review
+router.patch('/:id/submit-review', protect, authorize('employee'), submitReview);
+
+// Client confirms delivered work (review → completed)
+router.patch('/:id/confirm', protect, authorize('client'), confirm);
+
+// Client requests changes on work in review (review → accepted)
+router.patch('/:id/request-changes', protect, authorize('client'), changeRequest);
+
+// Admin force-completes an order, overriding client confirmation
+router.patch('/:id/force-complete', protect, authorize('admin'), forceComplete);
 
 // Client or employee posts a message in the order conversation
 router.post('/:id/messages', protect, authorize('client', 'employee'), upload.array('files', 5), postMessage);

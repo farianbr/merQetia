@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getOrders, sendMessage } from '../../api/orders';
+import { getOrders, sendMessage, confirmOrder, requestChanges } from '../../api/orders';
 import { useSocket } from '../../context/SocketContext';
 import { Link, useLocation } from 'react-router-dom';
 import ChatAttachments from '../../components/ChatAttachments';
@@ -20,6 +20,7 @@ const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
   accepted: '#06b6d4',
+  review: '#8b5cf6',
   overdue: '#dc2626',
   rejected: '#ef4444',
   completed: '#10b981',
@@ -29,6 +30,7 @@ const STATUS_LABEL = {
   placed: 'Placed',
   assigned: 'Assigned',
   accepted: 'In Progress',
+  review: 'Needs Your Review',
   overdue: 'Overdue',
   rejected: 'Rejected',
   completed: 'Completed',
@@ -52,6 +54,9 @@ export default function ClientOrders() {
   const [error, setError] = useState('');
   const [lightbox, setLightbox] = useState(null);
   const [mediaModal, setMediaModal] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [changesModal, setChangesModal] = useState(false);
+  const [changesNote, setChangesNote] = useState('');
   const chatBottomRef = useRef(null);
   const activeOrderRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -128,6 +133,41 @@ export default function ClientOrders() {
       setError(err.response?.data?.message || 'Failed to send message');
     } finally {
       setSendingMsg(false);
+    }
+  };
+
+  const applyOrder = (updated) => {
+    setActiveOrder(updated);
+    setOrders((prev) => prev.map((o) => (o._id === updated._id ? updated : o)));
+  };
+
+  const handleConfirm = async () => {
+    if (!activeOrder) return;
+    setReviewLoading(true);
+    setError('');
+    try {
+      const r = await confirmOrder(activeOrder._id);
+      applyOrder(r.data.order);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to confirm order');
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const handleRequestChanges = async () => {
+    if (!activeOrder || !changesNote.trim()) return;
+    setReviewLoading(true);
+    setError('');
+    try {
+      const r = await requestChanges(activeOrder._id, changesNote.trim());
+      applyOrder(r.data.order);
+      setChangesModal(false);
+      setChangesNote('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to request changes');
+    } finally {
+      setReviewLoading(false);
     }
   };
 
@@ -240,6 +280,28 @@ export default function ClientOrders() {
               </div>
             )}
 
+            {/* Review action panel — client confirmation needed to complete */}
+            {activeOrder.status === 'review' && (
+              <div className="co-review-panel">
+                <div className="co-review-text">
+                  <strong>Your work is ready for review.</strong>
+                  <span>Please confirm the order is complete, or request changes if something needs adjusting.</span>
+                </div>
+                <div className="co-review-actions">
+                  <button
+                    className="btn-secondary"
+                    onClick={() => { setChangesNote(''); setChangesModal(true); }}
+                    disabled={reviewLoading}
+                  >
+                    Request Changes
+                  </button>
+                  <button className="btn-primary" onClick={handleConfirm} disabled={reviewLoading}>
+                    {reviewLoading ? 'Confirming…' : 'Confirm & Complete'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Conversation */}
             <div className="co-conversation">
               <h3 className="co-conv-title">Conversation</h3>
@@ -276,7 +338,7 @@ export default function ClientOrders() {
                     <div ref={chatBottomRef} />
                   </div>
 
-                  {activeOrder.status === 'accepted' && (
+                  {(activeOrder.status === 'accepted' || activeOrder.status === 'review') && (
                     <form className="chat-input-area" onSubmit={handleSendMessage}>
                       {attachFiles.length > 0 && (
                         <div className="chat-attach-preview">
@@ -339,6 +401,31 @@ export default function ClientOrders() {
           </div>
         )}
       </div>
+
+      {changesModal && (
+        <div className="modal-overlay" onClick={() => setChangesModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Request Changes</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '.9rem' }}>
+              Describe what needs to change. The order goes back to the employee to revise.
+            </p>
+            <label className="form-label">What needs changing?</label>
+            <textarea
+              className="input"
+              rows={4}
+              value={changesNote}
+              onChange={(e) => setChangesNote(e.target.value)}
+              placeholder="e.g. Please adjust the colors on the logo and resend the source files"
+            />
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setChangesModal(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleRequestChanges} disabled={reviewLoading || !changesNote.trim()}>
+                {reviewLoading ? 'Sending…' : 'Send Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {lightbox && (
         <ImageLightbox src={lightbox.src} name={lightbox.name} onClose={() => setLightbox(null)} />

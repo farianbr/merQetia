@@ -4,6 +4,7 @@ const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
   accepted: '#06b6d4',
+  review: '#8b5cf6',
   rejected: '#ef4444',
   completed: '#10b981',
 };
@@ -12,11 +13,12 @@ const STATUS_LABEL = {
   placed: 'Placed',
   assigned: 'Assigned',
   accepted: 'In Progress',
+  review: 'In Review',
   rejected: 'Rejected',
   completed: 'Completed',
 };
 
-const NORMAL_STEPS = ['placed', 'assigned', 'accepted', 'completed'];
+const NORMAL_STEPS = ['placed', 'assigned', 'accepted', 'review', 'completed'];
 
 export default function OrderTimeline({ status }) {
   const isRejected = status === 'rejected';

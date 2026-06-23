@@ -16,6 +16,7 @@ import {
 const STATUS_CONFIG = {
   assigned:  { label: 'New Request', color: '#3b82f6' },
   accepted:  { label: 'In Progress', color: '#06b6d4' },
+  review:    { label: 'In Review',   color: '#8b5cf6' },
   overdue:   { label: 'Overdue',     color: '#ef4444' },
   rejected:  { label: 'Declined',    color: '#ef4444' },
   completed: { label: 'Completed',   color: '#10b981' },

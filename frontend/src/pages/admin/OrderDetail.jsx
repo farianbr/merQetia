@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getOrder, assignEmployee, adminSetDeliveryDate, adminResetStatus } from '../../api/orders';
+import { getOrder, assignEmployee, adminSetDeliveryDate, adminResetStatus, forceCompleteOrder } from '../../api/orders';
 import { getEmployees } from '../../api/admin';
 import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
@@ -16,6 +16,7 @@ const STATUS_CONFIG = {
   placed:    { label: 'Placed',      color: '#92400e', bg: '#fef3c7', dot: '#f59e0b' },
   assigned:  { label: 'Assigned',    color: '#1e40af', bg: '#dbeafe', dot: '#3b82f6' },
   accepted:  { label: 'In Progress', color: '#155e75', bg: '#cffafe', dot: '#06b6d4' },
+  review:    { label: 'In Review',   color: '#5b21b6', bg: '#ede9fe', dot: '#8b5cf6' },
   overdue:   { label: 'Overdue',     color: '#991b1b', bg: '#fee2e2', dot: '#ef4444' },
   rejected:  { label: 'Rejected',    color: '#991b1b', bg: '#fee2e2', dot: '#ef4444' },
   completed: { label: 'Completed',   color: '#065f46', bg: '#d1fae5', dot: '#10b981' },
@@ -44,10 +45,11 @@ function fileSize(bytes) {
 const LIFECYCLE_STEPS = [
   { key: 'placed',    label: 'Order Placed',   getSubtitle: (o) => fmtDate(o.createdAt) },
   { key: 'assigned',  label: 'Brief Approved', getSubtitle: () => null },
-  { key: 'accepted',  label: 'In Progress',    getSubtitle: () => null },
-  { key: 'completed', label: 'Pending Review', getSubtitle: (o) => o.deliveryDate ? `Est. ${fmtDate(o.deliveryDate)}` : null },
+  { key: 'accepted',  label: 'In Progress',    getSubtitle: (o) => o.deliveryDate ? `Est. ${fmtDate(o.deliveryDate)}` : null },
+  { key: 'review',    label: 'Client Review',  getSubtitle: () => null },
+  { key: 'completed', label: 'Completed',      getSubtitle: () => null },
 ];
-const STATUS_ORDER = ['placed', 'assigned', 'accepted', 'completed'];
+const STATUS_ORDER = ['placed', 'assigned', 'accepted', 'review', 'completed'];
 
 function LifecycleTracker({ order }) {
   const isRejected = order.status === 'rejected';
@@ -210,6 +212,20 @@ export default function AdminOrderDetail() {
     }
   };
 
+  const handleForceComplete = async () => {
+    setStatusLoading(true);
+    setStatusError('');
+    try {
+      await forceCompleteOrder(id);
+      setModal(null);
+      fetchOrder();
+    } catch (err) {
+      setStatusError(err.response?.data?.message || 'Failed to complete order');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
   if (loading) return <div className="loading">Loading order…</div>;
   if (error) return (
     <div className="page">
@@ -224,7 +240,7 @@ export default function AdminOrderDetail() {
   const allAttachments = (order.messages || []).flatMap((m) =>
     (m.attachments || []).map((att) => ({ ...att, sharedBy: m.sender?.name || '—', sharedAt: m.createdAt }))
   );
-  const isConvoOpen = order.status === 'accepted' || order.status === 'completed';
+  const isConvoOpen = ['accepted', 'review', 'completed'].includes(order.status);
 
   return (
     <div className="page odv-page">
@@ -263,6 +279,12 @@ export default function AdminOrderDetail() {
           {order.status === 'accepted' && order.deliveryDate && (
             <button className="odv-ctrl-btn" onClick={() => { setNewDeliveryDate(''); setDeliveryError(''); setModal('delivery'); }}>
               <LuCalendarDays size={14} color="#3b82f6" /> Change Delivery Date
+            </button>
+          )}
+          {/* Force complete — override client confirmation while in progress / review */}
+          {(order.status === 'accepted' || order.status === 'review') && (
+            <button className="odv-ctrl-btn" onClick={() => { setStatusError(''); setModal('force-complete'); }}>
+              <LuShieldCheck size={14} color="#10b981" /> Force Complete
             </button>
           )}
           {/* Change status — only for rejected or completed */}
@@ -349,6 +371,14 @@ export default function AdminOrderDetail() {
             <section className="odv-card odv-card--warn">
               <h2 className="odv-card-title">Rejection Reason</h2>
               <p className="odv-brief-text">{order.rejectionReason}</p>
+            </section>
+          )}
+
+          {/* Changes requested by client (back in progress) */}
+          {order.status === 'accepted' && order.revisionNote && (
+            <section className="odv-card odv-card--warn">
+              <h2 className="odv-card-title">Changes Requested by Client</h2>
+              <p className="odv-brief-text">{order.revisionNote}</p>
             </section>
           )}
 
@@ -496,6 +526,22 @@ export default function AdminOrderDetail() {
             <button className="btn-secondary" onClick={() => { setModal(null); setStatusError(''); }}>Cancel</button>
             <button className="btn-primary" onClick={handleResetStatus} disabled={statusLoading}>
               {statusLoading ? 'Updating…' : order.status === 'rejected' ? 'Reset to Unassigned' : 'Set to In Progress'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'force-complete' && (
+        <Modal title="Force Complete Order" onClose={() => { setModal(null); setStatusError(''); }}>
+          {statusError && <p className="error-msg">{statusError}</p>}
+          <p style={{ fontSize: '.85rem', color: '#374151', marginBottom: 16 }}>
+            This overrides client confirmation and marks the order as <strong>Completed</strong>.
+            Use this only when the client is unresponsive or has confirmed off-platform.
+          </p>
+          <div className="modal-actions">
+            <button className="btn-secondary" onClick={() => { setModal(null); setStatusError(''); }}>Cancel</button>
+            <button className="btn-primary" onClick={handleForceComplete} disabled={statusLoading}>
+              {statusLoading ? 'Completing…' : 'Force Complete'}
             </button>
           </div>
         </Modal>

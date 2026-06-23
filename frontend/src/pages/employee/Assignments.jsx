@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMyAssignments, acceptOrder, rejectOrder, completeOrder, sendMessage } from '../../api/orders';
+import { getMyAssignments, acceptOrder, rejectOrder, submitForReview, sendMessage } from '../../api/orders';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import OrderTimeline from '../../components/OrderTimeline';
@@ -20,6 +20,7 @@ const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
   accepted: '#06b6d4',
+  review: '#8b5cf6',
   rejected: '#ef4444',
   completed: '#10b981',
 };
@@ -28,6 +29,7 @@ const STATUS_LABEL = {
   placed: 'Pending',
   assigned: 'New Request',
   accepted: 'In Progress',
+  review: 'In Review',
   rejected: 'Declined',
   completed: 'Completed',
 };
@@ -111,13 +113,13 @@ export default function EmployeeOrders() {
     }
   };
 
-  const handleComplete = async (orderId) => {
+  const handleSubmitForReview = async (orderId) => {
     setActionLoading(true);
     try {
-      await completeOrder(orderId);
+      await submitForReview(orderId);
       fetchOrders();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to mark complete');
+      setError(err.response?.data?.message || 'Failed to submit for review');
     } finally {
       setActionLoading(false);
     }
@@ -224,9 +226,14 @@ export default function EmployeeOrders() {
                   </>
                 )}
                 {activeOrder.status === 'accepted' && (
-                  <button className="ew-btn-complete" disabled={actionLoading} onClick={() => handleComplete(activeOrder._id)}>
-                    {actionLoading ? 'SavingΓÇª' : 'Mark Complete'}
+                  <button className="ew-btn-complete" disabled={actionLoading} onClick={() => handleSubmitForReview(activeOrder._id)}>
+                    {actionLoading ? 'SubmittingΓÇª' : 'Submit for Review'}
                   </button>
+                )}
+                {activeOrder.status === 'review' && (
+                  <span className="co-detail-status" style={{ background: STATUS_COLORS.review + '22', color: STATUS_COLORS.review }}>
+                    Awaiting client confirmation
+                  </span>
                 )}
                 <button
                   className="btn-secondary"
@@ -309,7 +316,7 @@ export default function EmployeeOrders() {
                     <div ref={chatBottomRef} />
                   </div>
 
-                  {activeOrder.status === 'accepted' && (
+                  {(activeOrder.status === 'accepted' || activeOrder.status === 'review') && (
                     <form className="chat-input-area" onSubmit={handleSendMessage}>
                       {attachFiles.length > 0 && (
                         <div className="chat-attach-preview">

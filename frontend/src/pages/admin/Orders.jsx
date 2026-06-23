@@ -8,6 +8,7 @@ const STATUS_CONFIG = {
   placed:    { label: 'Pending',     color: '#6b7280', bg: '#f3f4f6' },
   assigned:  { label: 'Assigned',    color: '#2563eb', bg: '#dbeafe' },
   accepted:  { label: 'In Progress', color: '#0e7490', bg: '#cffafe' },
+  review:    { label: 'In Review',   color: '#5b21b6', bg: '#ede9fe' },
   overdue:   { label: 'Overdue',     color: '#dc2626', bg: '#fee2e2' },
   rejected:  { label: 'Rejected',    color: '#dc2626', bg: '#fee2e2' },
   completed: { label: 'Completed',   color: '#059669', bg: '#d1fae5' },
@@ -20,7 +21,7 @@ function getDisplayStatus(order) {
   return order.status;
 }
 
-const STATUSES = ['all', 'placed', 'assigned', 'accepted', 'rejected', 'completed'];
+const STATUSES = ['all', 'placed', 'assigned', 'accepted', 'review', 'rejected', 'completed'];
 const STATUS_LABEL = Object.fromEntries(Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.label]));
 STATUS_LABEL.all = 'All Statuses';
 

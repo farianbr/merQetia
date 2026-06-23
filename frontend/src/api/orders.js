@@ -11,8 +11,14 @@ export const acceptOrder = (id, deliveryDate) =>
   api.patch(`/orders/${id}/accept`, { deliveryDate });
 export const rejectOrder = (id, reason) =>
   api.patch(`/orders/${id}/reject`, { reason });
-export const completeOrder = (id) =>
-  api.patch(`/orders/${id}/complete`);
+export const submitForReview = (id) =>
+  api.patch(`/orders/${id}/submit-review`);
+export const confirmOrder = (id) =>
+  api.patch(`/orders/${id}/confirm`);
+export const requestChanges = (id, note) =>
+  api.patch(`/orders/${id}/request-changes`, { note });
+export const forceCompleteOrder = (id) =>
+  api.patch(`/orders/${id}/force-complete`);
 export const sendMessage = (id, text, files = []) => {
   if (files.length === 0) {
     return api.post(`/orders/${id}/messages`, { text });

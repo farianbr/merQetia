@@ -12,6 +12,7 @@ const STATUS_LABEL = {
   placed: 'Placed',
   assigned: 'Assigned',
   accepted: 'In Progress',
+  review: 'In Review',
   rejected: 'Rejected',
   completed: 'Completed',
 };
@@ -389,9 +390,9 @@ const rejectOrder = async (orderId, employeeId, reason) => {
 };
 
 /**
- * Employee marks an accepted order as completed — accepted → completed
+ * Employee submits finished work for client review — accepted → review
  */
-const completeOrder = async (orderId, employeeId) => {
+const submitForReview = async (orderId, employeeId) => {
   const order = await Order.findById(orderId);
   if (!order) {
     const err = new Error('Order not found');
@@ -406,19 +407,136 @@ const completeOrder = async (orderId, employeeId) => {
   }
 
   if (order.status !== 'accepted') {
-    const err = new Error('Only accepted orders can be marked as completed');
+    const err = new Error('Only in-progress orders can be submitted for review');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  order.status = 'review';
+  order.revisionNote = null; // clear any prior change request
+  await order.save();
+
+  const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Ready for Review', `Your order ${orderNum} is ready for review. Please confirm completion or request changes.`);
+  User.find({ role: 'admin' }).select('_id').then((admins) => {
+    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Submitted for Review', `Order ${orderNum} has been submitted for client review by the assigned employee.`));
+  }).catch(() => {});
+
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
+};
+
+/**
+ * Client confirms the delivered work — review → completed
+ */
+const confirmOrder = async (orderId, clientId) => {
+  const order = await Order.findById(orderId);
+  if (!order) {
+    const err = new Error('Order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (order.clientId.toString() !== clientId.toString()) {
+    const err = new Error('Access denied');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (order.status !== 'review') {
+    const err = new Error('Only orders in review can be confirmed');
     err.statusCode = 400;
     throw err;
   }
 
   order.status = 'completed';
+  order.revisionNote = null;
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Completed', `Great news! Your order ${orderNum} has been completed. Please review the delivered work.`);
+  if (order.assignedEmployee) {
+    pushNotification(order.assignedEmployee, order._id, orderNum, 'status', 'Order Completed', `The client has confirmed and completed order ${orderNum}. Great work!`);
+  }
   User.find({ role: 'admin' }).select('_id').then((admins) => {
-    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been marked as completed by the employee.`));
+    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been confirmed and completed by the client.`));
   }).catch(() => {});
+
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
+};
+
+/**
+ * Client requests changes on submitted work — review → accepted (back in progress)
+ */
+const requestChanges = async (orderId, clientId, note) => {
+  const order = await Order.findById(orderId);
+  if (!order) {
+    const err = new Error('Order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (order.clientId.toString() !== clientId.toString()) {
+    const err = new Error('Access denied');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (order.status !== 'review') {
+    const err = new Error('Only orders in review can have changes requested');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  order.status = 'accepted';
+  order.revisionNote = note || null;
+  await order.save();
+
+  const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  const body = note
+    ? `The client requested changes on order ${orderNum}: "${note.slice(0, 120)}"`
+    : `The client requested changes on order ${orderNum}.`;
+  if (order.assignedEmployee) {
+    pushNotification(order.assignedEmployee, order._id, orderNum, 'status', 'Changes Requested', body);
+  }
+  User.find({ role: 'admin' }).select('_id').then((admins) => {
+    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Changes Requested', body));
+  }).catch(() => {});
+
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
+};
+
+/**
+ * Admin force-completes an order, overriding client confirmation
+ * (e.g. unresponsive client) — accepted | review → completed
+ */
+const adminForceComplete = async (orderId) => {
+  const order = await Order.findById(orderId);
+  if (!order) {
+    const err = new Error('Order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (!['accepted', 'review'].includes(order.status)) {
+    const err = new Error('Only in-progress or in-review orders can be force-completed');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  order.status = 'completed';
+  order.revisionNote = null;
+  await order.save();
+
+  const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Completed', `Your order ${orderNum} has been marked as completed.`);
+  if (order.assignedEmployee) {
+    pushNotification(order.assignedEmployee, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been marked as completed by an admin.`);
+  }
 
   const populated = await order.populate(POPULATE_ORDER);
   broadcastOrder(populated);
@@ -436,7 +554,7 @@ const addMessage = async (orderId, senderId, senderRole, text, attachments = [])
     throw err;
   }
 
-  if (order.status !== 'accepted' && order.status !== 'completed') {
+  if (!['accepted', 'review', 'completed'].includes(order.status)) {
     const err = new Error('Conversation is only available on accepted orders');
     err.statusCode = 400;
     throw err;
@@ -668,7 +786,10 @@ module.exports = {
   assignEmployee,
   acceptOrder,
   rejectOrder,
-  completeOrder,
+  submitForReview,
+  confirmOrder,
+  requestChanges,
+  adminForceComplete,
   addMessage,
   addUpdate,
   listMentionableParticipants,

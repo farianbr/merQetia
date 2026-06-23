@@ -40,7 +40,7 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['placed', 'assigned', 'accepted', 'rejected', 'completed'],
+      enum: ['placed', 'assigned', 'accepted', 'review', 'rejected', 'completed'],
       default: 'placed',
     },
     assignedEmployee: {
@@ -56,6 +56,11 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: null,
       maxlength: [500, 'Rejection reason cannot exceed 500 characters'],
+    },
+    revisionNote: {
+      type: String,
+      default: null,
+      maxlength: [500, 'Revision note cannot exceed 500 characters'],
     },
     totalPrice: {
       type: Number,

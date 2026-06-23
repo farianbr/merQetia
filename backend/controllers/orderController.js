@@ -6,7 +6,10 @@ const {
   assignEmployee,
   acceptOrder,
   rejectOrder,
-  completeOrder,
+  submitForReview,
+  confirmOrder,
+  requestChanges,
+  adminForceComplete,
   addMessage,
   addUpdate,
   listMentionableParticipants,
@@ -165,12 +168,55 @@ const reject = async (req, res, next) => {
 };
 
 /**
- * PATCH /api/orders/:id/complete
- * Employee only — mark an accepted order as completed
+ * PATCH /api/orders/:id/submit-review
+ * Employee only — submit an in-progress order for client review
  */
-const complete = async (req, res, next) => {
+const submitReview = async (req, res, next) => {
   try {
-    const order = await completeOrder(req.params.id, req.user.id);
+    const order = await submitForReview(req.params.id, req.user.id);
+    res.status(200).json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/orders/:id/confirm
+ * Client only — confirm delivered work, completing the order
+ */
+const confirm = async (req, res, next) => {
+  try {
+    const order = await confirmOrder(req.params.id, req.user.id);
+    res.status(200).json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/orders/:id/request-changes
+ * Client only — send an order in review back for revisions
+ */
+const changeRequest = async (req, res, next) => {
+  try {
+    const note = (req.body.note || '').trim();
+    if (!note) {
+      return res.status(400).json({ success: false, message: 'Please describe the changes you need' });
+    }
+    const order = await requestChanges(req.params.id, req.user.id, note);
+    res.status(200).json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/orders/:id/force-complete
+ * Admin only — override client confirmation and complete the order
+ */
+const forceComplete = async (req, res, next) => {
+  try {
+    const order = await adminForceComplete(req.params.id);
     res.status(200).json({ success: true, order });
   } catch (err) {
     next(err);
@@ -283,5 +329,5 @@ const resetStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus };
+module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus };
 

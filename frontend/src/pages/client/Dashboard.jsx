@@ -12,12 +12,14 @@ const STATUS_COLORS = {
   placed:    '#f59e0b',
   assigned:  '#3b82f6',
   accepted:  '#06b6d4',
+  review:    '#8b5cf6',
   overdue:   '#dc2626',
 };
 const STATUS_LABEL = {
   placed:    'Placed',
   assigned:  'Assigned',
   accepted:  'In Progress',
+  review:    'Needs Your Review',
   overdue:   'Overdue',
 };
 

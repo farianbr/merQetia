@@ -15,6 +15,7 @@ const STATUS_CONFIG = {
   placed: { label: 'Not Started', color: '#9ca3af' },
   assigned: { label: 'Assigned', color: '#3b82f6' },
   accepted: { label: 'In Progress', color: '#06b6d4' },
+  review: { label: 'In Review', color: '#8b5cf6' },
   rejected: { label: 'Rejected', color: '#ef4444' },
   completed: { label: 'Completed', color: '#10b981' },
 };

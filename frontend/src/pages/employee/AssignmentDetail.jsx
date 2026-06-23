@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getOrder, acceptOrder, rejectOrder, completeOrder, sendMessage } from '../../api/orders';
+import { getOrder, acceptOrder, rejectOrder, submitForReview, sendMessage } from '../../api/orders';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import { LuArrowLeft, LuUser, LuCalendar, LuCheck, LuFile, LuPaperclip } from 'react-icons/lu';
@@ -19,6 +19,7 @@ const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
   accepted: '#06b6d4',
+  review: '#8b5cf6',
   rejected: '#ef4444',
   completed: '#10b981',
 };
@@ -27,6 +28,7 @@ const STATUS_LABEL = {
   placed: 'Pending',
   assigned: 'Offered',
   accepted: 'In Progress',
+  review: 'In Review',
   rejected: 'Declined',
   completed: 'Completed',
 };
@@ -105,13 +107,13 @@ export default function AssignmentDetail() {
     }
   };
 
-  const handleComplete = async () => {
+  const handleSubmitForReview = async () => {
     setActionLoading(true);
     try {
-      await completeOrder(id);
+      await submitForReview(id);
       fetchOrder();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to mark complete');
+      setError(err.response?.data?.message || 'Failed to submit for review');
     } finally {
       setActionLoading(false);
     }
@@ -201,9 +203,14 @@ export default function AssignmentDetail() {
             </>
           )}
           {order.status === 'accepted' && (
-            <button className="ew-btn-complete" disabled={actionLoading} onClick={handleComplete}>
-              {actionLoading ? 'Saving…' : 'Mark as Complete'}
+            <button className="ew-btn-complete" disabled={actionLoading} onClick={handleSubmitForReview}>
+              {actionLoading ? 'Submitting…' : 'Submit for Review'}
             </button>
+          )}
+          {order.status === 'review' && (
+            <span className="badge" style={{ background: STATUS_COLORS.review }}>
+              Awaiting client confirmation
+            </span>
           )}
         </div>
       </div>
@@ -211,7 +218,12 @@ export default function AssignmentDetail() {
       <div className="asd-grid">
         {/* Left column — conversation (bigger) */}
         <div className="asd-col-main">
-          {(order.status === 'accepted' || order.status === 'completed') ? (
+          {order.revisionNote && (
+            <div className="asd-rejection-box" style={{ borderColor: STATUS_COLORS.review, color: '#6d28d9' }}>
+              <strong>Client requested changes:</strong> {order.revisionNote}
+            </div>
+          )}
+          {(order.status === 'accepted' || order.status === 'review' || order.status === 'completed') ? (
             <div className="asd-card asd-chat-card">
               <h3 className="asd-card-title">
                 Conversation
@@ -245,7 +257,7 @@ export default function AssignmentDetail() {
                 <div ref={chatBottomRef} />
               </div>
 
-              {order.status === 'accepted' && (
+              {(order.status === 'accepted' || order.status === 'review') && (
                 <form className="chat-input-area" onSubmit={handleSendMessage}>
                   {attachFiles.length > 0 && (
                     <div className="chat-attach-preview">
