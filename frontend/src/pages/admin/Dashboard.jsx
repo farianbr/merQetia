@@ -80,6 +80,20 @@ const COLUMN_DEFS = [
     defaultVisible: true,
   },
   {
+    key: "payment",
+    label: "Payment",
+    sortable: true,
+    sortType: "payment",
+    defaultVisible: true,
+  },
+  {
+    key: "placed",
+    label: "Placed",
+    sortable: true,
+    sortType: "placed",
+    defaultVisible: true,
+  },
+  {
     key: "date",
     label: "Due Date",
     sortable: true,
@@ -98,6 +112,7 @@ const STATUS_TIMELINE = [
   "assigned",
   "accepted",
   "overdue",
+  "review",
   "completed",
   "rejected",
 ];
@@ -113,7 +128,9 @@ const GROUPS = [
     key: "active",
     label: "Active Orders",
     color: "#0073ea",
-    statuses: ["accepted"],
+    // Orders in review are still in flight — they stay in Active until the
+    // client confirms completion.
+    statuses: ["accepted", "review"],
   },
 ];
 
@@ -154,6 +171,22 @@ function StatusPill({ status, deliveryDate }) {
   return (
     <span className="mq-status-pill" style={{ background: cfg.color }}>
       {cfg.label}
+    </span>
+  );
+}
+
+function PaymentPill({ invoice }) {
+  if (!invoice) return <span className="mq-employee-empty">—</span>;
+  const paid = invoice.status === "paid";
+  return (
+    <span
+      className="mq-payment-pill"
+      style={{
+        color: paid ? "#047857" : "#b45309",
+        background: paid ? "#d1fae5" : "#fef3c7",
+      }}
+    >
+      {paid ? "Paid" : "Unpaid"}
     </span>
   );
 }
@@ -289,8 +322,11 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [order?.messages?.length]);
 
-  const canMessage =
-    order.status === "accepted" || order.status === "completed";
+  // Internal admin↔employee thread — open from assignment onward so the team
+  // can coordinate with the employee before they accept the order.
+  const canMessage = ["assigned", "accepted", "review", "completed"].includes(
+    order.status,
+  );
 
   // Load mentionable participants (assigned employee + other admins) when the panel opens.
   useEffect(() => {
@@ -379,7 +415,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
           {!canMessage ? (
             <div className="mq-panel-placeholder">
               <LuMessageSquare size={32} color="#d1d5db" />
-              <p>Updates are available once the order is accepted.</p>
+              <p>Updates are available once an employee is assigned.</p>
             </div>
           ) : !order.updates || order.updates.length === 0 ? (
             <div className="mq-panel-placeholder">
@@ -625,6 +661,16 @@ function OrderGroup({
         const bc = b.updates?.length || 0;
         return dir === "asc" ? ac - bc : bc - ac;
       }
+      if (def.sortType === "placed") {
+        const at = a.createdAt ? new Date(a.createdAt).getTime() : Infinity;
+        const bt = b.createdAt ? new Date(b.createdAt).getTime() : Infinity;
+        return dir === "asc" ? at - bt : bt - at;
+      }
+      if (def.sortType === "payment") {
+        // unpaid (0) sorts before paid (1) ascending, so attention-needers surface first
+        const rank = (o) => (o.invoice?.status === "paid" ? 1 : 0);
+        return dir === "asc" ? rank(a) - rank(b) : rank(b) - rank(a);
+      }
       return 0;
     });
   }, [groupOrders, sortState, getEffectiveStatus]);
@@ -827,6 +873,27 @@ function OrderGroup({
                                 />
                               </td>
                             );
+                          case "payment":
+                            return (
+                              <td key={colKey} className="mq-td mq-td-payment">
+                                <PaymentPill invoice={order.invoice} />
+                              </td>
+                            );
+                          case "placed":
+                            return (
+                              <td key={colKey} className="mq-td mq-td-date">
+                                {order.createdAt
+                                  ? new Date(order.createdAt).toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      },
+                                    )
+                                  : "—"}
+                              </td>
+                            );
                           case "date":
                             return (
                               <td key={colKey} className="mq-td mq-td-date">
@@ -970,7 +1037,17 @@ export default function AdminDashboard() {
   });
 
   const [visibleCols, setVisibleCols] = useState(() => {
-    if (prefs?.visibleCols?.length) return new Set(prefs.visibleCols);
+    if (prefs?.visibleCols?.length) {
+      const set = new Set(prefs.visibleCols);
+      // Columns introduced after the prefs were saved (absent from the saved
+      // order) default to visible — so new columns show up without wiping the
+      // admin's earlier show/hide choices for existing ones.
+      const savedOrder = new Set(prefs.colOrder || []);
+      COLUMN_DEFS.forEach((c) => {
+        if (c.defaultVisible && !savedOrder.has(c.key)) set.add(c.key);
+      });
+      return set;
+    }
     return DEFAULT_VISIBLE_COLS;
   });
 

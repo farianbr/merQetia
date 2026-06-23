@@ -81,6 +81,49 @@
 .chat-input-row .input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
 .chat-closed { font-size: .85rem; color: var(--text-muted); text-align: center; font-style: italic; }
 
+/* Conversation lifecycle events — change requests and review submissions
+   rendered inline in any order conversation. A quiet, Apple-clean card that
+   sits centered at ~half width so it reads as a milestone, not a chat bubble.
+   Always attributed by name. */
+.chat-event {
+  align-self: center; width: min(52%, 440px); box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; gap: .3rem;
+  margin: .4rem 0; padding: .9rem 1rem; text-align: center;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.chat-event-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; margin-bottom: .1rem;
+}
+.chat-event-title { margin: 0; font-size: .9rem; font-weight: 600; color: var(--text); letter-spacing: -.01em; }
+.chat-event-time { font-size: .72rem; color: var(--text-muted); }
+.chat-event-note {
+  margin: .35rem 0 0; width: 100%; box-sizing: border-box;
+  font-size: .85rem; color: var(--text); line-height: 1.5; white-space: pre-wrap;
+  text-align: left; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: .5rem .7rem;
+}
+.chat-event-status {
+  margin-top: .25rem; font-size: .72rem; font-weight: 600;
+  padding: .15rem .65rem; border-radius: 100px;
+}
+
+/* Soft, neutral accent tints by event type / outcome. */
+.chat-event-icon--change,
+.chat-event-icon--changes { background: #fff7ed; color: #d97706; }
+.chat-event-icon--pending { background: #eff6ff; color: #2563eb; }
+.chat-event-icon--approved { background: #ecfdf5; color: #059669; }
+.chat-event-status--changes { background: #fff7ed; color: #b45309; }
+.chat-event-status--approved { background: #ecfdf5; color: #059669; }
+
+[data-theme="dark"] .chat-event-icon--change,
+[data-theme="dark"] .chat-event-icon--changes { background: rgba(245,158,11,.16); color: #fbbf24; }
+[data-theme="dark"] .chat-event-icon--pending { background: rgba(59,130,246,.18); color: #93c5fd; }
+[data-theme="dark"] .chat-event-icon--approved { background: rgba(16,185,129,.18); color: #6ee7b7; }
+[data-theme="dark"] .chat-event-status--changes { background: rgba(245,158,11,.16); color: #fbbf24; }
+[data-theme="dark"] .chat-event-status--approved { background: rgba(16,185,129,.18); color: #6ee7b7; }
+
 /* .modal--wide, .input, .form-label → styles/primitives.css */
 
 /* ─── Admin Orders list ─── */
@@ -370,10 +413,13 @@
 .co-review-text strong { color: #4c1d95; }
 .co-review-actions { display: flex; gap: .5rem; flex-shrink: 0; }
 
-/* Details panel (toggle) */
+/* Details (inline brief for new requests + Details modal) */
 .co-detail-body { display: flex; flex: 1; min-height: 0; gap: 0; overflow: hidden; }
-.co-detail-main { display: flex; flex-direction: column; flex: 2; min-width: 0; overflow: hidden; }
-.co-details-panel { flex: 1; min-width: 220px; max-width: 300px; overflow-y: auto; border-left: 1px solid var(--border); padding: 0 0 1rem 1.25rem; display: flex; flex-direction: column; gap: 1.25rem; }
+.co-detail-main { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; }
+/* Inline brief shown above the conversation for new requests */
+.co-detail-inline-details { display: flex; flex-direction: column; gap: 1.25rem; margin-bottom: 1.25rem; }
+/* Details modal body — same section stack, scrolls if tall */
+.co-details-modal-body { display: flex; flex-direction: column; gap: 1.25rem; max-height: 70vh; overflow-y: auto; }
 .co-dp-section { display: flex; flex-direction: column; gap: .55rem; }
 .co-dp-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); }
 .co-dp-services-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -719,10 +765,14 @@
 .cl-sidebar-brand { padding: 0 1.4rem 1.75rem; text-align: center; }
 .cl-brand-name { display: inline-flex; font-size: 1.25rem; font-weight: 800; color: #fff; text-decoration: none; letter-spacing: -.02em; }
 
-/* merQetia wordmark lockup (symbol stands in for the "Q") */
+/* merQetia full wordmark logo (PNG lockup, light/dark variants) */
 .mq-logo { display: inline-flex; align-items: center; line-height: 1; white-space: nowrap; }
-.mq-logo-text { font-weight: 800; letter-spacing: -.02em; }
-.mq-logo-q { height: 1.05em; width: auto; margin: 0 .03em; display: inline-block; }
+.mq-logo-img { height: 1.7rem; width: auto; display: block; }
+.mq-logo--auto .mq-logo-img--dark { display: none; }
+[data-theme="dark"] .mq-logo--auto .mq-logo-img--light { display: none; }
+[data-theme="dark"] .mq-logo--auto .mq-logo-img--dark { display: block; }
+/* Sidebar lockup sits on the dark teal brand surface */
+.cl-sidebar-brand .mq-logo-img { height: 1.6rem; }
 .cl-brand-sub { font-size: .72rem; color: #6b7fad; text-transform: uppercase; letter-spacing: .08em; font-weight: 500; display: block; margin-top: .15rem; }
 
 .cl-nav { display: flex; flex-direction: column; gap: .15rem; padding: 0 .75rem; flex: 1; }
@@ -1119,6 +1169,18 @@
 .nf-empty { display: flex; flex-direction: column; align-items: center; gap: .75rem; padding: 3rem 1rem; color: var(--text-muted); font-size: .9rem; }
 .nf-sentinel { height: 32px; }
 
+/* Page-based pagination footer (notifications) */
+.nf-pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.25rem; }
+.nf-page-btn {
+  display: inline-flex; align-items: center; gap: .25rem;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: .4rem .8rem; font-size: .85rem; font-weight: 600;
+  color: var(--text); cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+}
+.nf-page-btn:hover:not(:disabled) { background: #ecfeff; border-color: #67e8f9; color: var(--primary); }
+.nf-page-btn:disabled { opacity: .45; cursor: not-allowed; }
+.nf-page-info { font-size: .85rem; font-weight: 600; color: var(--text-muted); }
+
 /* Responsive — off-canvas drawer (shared by all three layout shells).
    Hamburger + overlay are hidden on desktop, shown below 768px. */
 .cl-hamburger { display: none; }
@@ -1349,6 +1411,7 @@
 
 /* ── Media modal ── */
 .modal--media { max-width: 640px; width: 90vw; }
+.modal--details { max-width: 480px; width: 90vw; }
 .modal-media-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .modal-media-header h2 { margin: 0; font-size: 1.1rem; font-weight: 700; }
 .modal-media-empty { color: var(--text-muted); text-align: center; padding: 2rem 0; font-size: .9rem; margin: 0; }
@@ -1495,6 +1558,13 @@
   white-space: nowrap;
 }
 
+/* Payment status pill */
+.mq-payment-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: .15rem .55rem; border-radius: 999px;
+  font-size: .72rem; font-weight: 700; white-space: nowrap;
+}
+
 /* Employee avatar */
 .mq-employee-avatar {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1550,7 +1620,11 @@
 /* ═══════════════════════════════════════════════════
    ORDER DETAIL v2  (odv-*)
 ═══════════════════════════════════════════════════ */
-.odv-page { max-width: 1200px; }
+.odv-page { max-width: none; width: 100%; }
+
+/* Full-width communication log below the two-column body */
+.odv-convo-full { margin-top: 1.5rem; }
+.odv-convo-full .odv-chat { max-height: 70vh; }
 
 /* Breadcrumb */
 .odv-breadcrumb { display: flex; align-items: center; gap: .5rem; margin-bottom: 1.25rem; }
@@ -1580,7 +1654,11 @@
 /* Admin Controls bar */
 .odv-controls {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  background: var(--card-bg); border: 1px solid var(--border);
+  /* Powerful action area — amber "caution" treatment so admins notice it.
+     Translucent tint + accent border read correctly in light and dark themes. */
+  background: rgba(245, 158, 11, 0.09);
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  border-left: 4px solid #f59e0b;
   border-radius: var(--radius); padding: .9rem 1.1rem;
   margin-bottom: 1.5rem; flex-wrap: wrap;
 }
@@ -1600,8 +1678,9 @@
 .odv-ctrl-btn--danger { color: #b91c1c; }
 .odv-ctrl-btn--danger:hover { background: #fff1f1; border-color: #fca5a5; color: #b91c1c; }
 
-/* Two-column body */
-.odv-body { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: start; }
+/* Two-column body — details (left) + tracker & conversation stacked (right).
+   Both columns carry content so neither leaves a tall empty gap. */
+.odv-body { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 1.5rem; align-items: start; }
 
 /* Cards */
 .odv-main { display: flex; flex-direction: column; gap: 1.25rem; }
@@ -1657,16 +1736,20 @@
   color: #6b7280; background: #f3f4f6; border: 1px solid #e5e7eb;
   border-radius: 4px; padding: .15rem .45rem;
 }
-.odv-conv-empty { font-size: .875rem; color: var(--text-muted); font-style: italic; margin: .5rem 0 0; }
-.odv-chat { display: flex; flex-direction: column; gap: .75rem; margin-top: .25rem; max-height: 480px; overflow-y: auto; padding: .5rem 0; }
+.odv-conv-empty { font-size: .875rem; color: var(--text-muted); font-style: italic; margin: .5rem 0; min-height: 120px; display: flex; align-items: center; }
+.odv-chat {
+  display: flex; flex-direction: column; gap: .9rem; margin-top: .25rem;
+  min-height: 340px; max-height: 65vh; overflow-y: auto;
+  padding: 1.1rem 1.25rem; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 12px;
+}
 .odv-msg { display: flex; align-items: flex-start; gap: .65rem; }
-.odv-msg--right { flex-direction: row-reverse; }
 .odv-msg-avatar {
   display: inline-flex; align-items: center; justify-content: center;
   width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
   font-size: .72rem; font-weight: 700; color: #fff;
 }
-.odv-msg-body { max-width: 75%; display: flex; flex-direction: column; gap: .2rem; }
+.odv-msg-body { max-width: min(72%, 640px); display: flex; flex-direction: column; gap: .2rem; }
 .odv-msg-meta { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
 .odv-msg-name { font-size: .8rem; font-weight: 700; color: var(--text); }
 .odv-msg-time { font-size: .73rem; color: var(--text-muted); }
@@ -1675,16 +1758,19 @@
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 10px; padding: .5rem .75rem; line-height: 1.5;
 }
-.odv-msg--right .odv-msg-text { background: #cffafe; border-color: #67e8f9; }
 
-/* ── Lifecycle Tracker sidebar ── */
-.odv-sidebar { position: sticky; top: 1rem; }
+/* ── Right column — Lifecycle Tracker + Communication Log ── */
+.odv-sidebar { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+/* Bounded to the left column's height (set inline via JS) so it never grows
+   past the questionnaires; once the revision rounds pile up, the step list
+   scrolls internally. */
 .odv-tracker {
+  display: flex; flex-direction: column;
   background: var(--card-bg); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 1.25rem 1.5rem;
 }
-.odv-tracker-title { font-size: 1rem; font-weight: 700; color: var(--text); margin: 0 0 1.25rem; }
-.odv-tracker-steps { display: flex; flex-direction: column; }
+.odv-tracker-title { font-size: 1rem; font-weight: 700; color: var(--text); margin: 0 0 1.25rem; flex-shrink: 0; }
+.odv-tracker-steps { display: flex; flex-direction: column; overflow-y: auto; min-height: 0; padding-right: .35rem; }
 .odv-tl-item { display: flex; gap: .9rem; padding-bottom: .1rem; }
 .odv-tl-left {
   display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 22px;
@@ -1700,6 +1786,7 @@
   box-shadow: 0 0 0 4px rgba(14, 116, 144,.15);
 }
 .odv-tl-dot--rejected { background: #ef4444; border-color: #ef4444; }
+.odv-tl-dot--revised { background: #f59e0b; border-color: #f59e0b; }
 .odv-tl-inner { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
 .odv-tl-line { width: 2px; flex: 1; background: #e5e7eb; margin: 3px 0; min-height: 28px; }
 .odv-tl-line--done { background: #10b981; }
@@ -1713,6 +1800,9 @@
   background: #cffafe; color: var(--primary); border-radius: 4px; padding: .1rem .4rem;
 }
 .odv-tl-sub { display: block; font-size: .78rem; color: var(--text-muted); margin-top: .15rem; }
+.odv-tl-revision { display: block; font-size: .78rem; color: #b45309; font-weight: 600; margin-top: .2rem; line-height: 1.4; }
+[data-theme="dark"] .odv-tl-revision { color: #fbbf24; }
+.odv-tl-active-tag.odv-tl-active-tag--revising { background: #fef3c7; color: #b45309; }
 
 /* Modal helpers */
 .modal-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
@@ -1722,8 +1812,9 @@
 
 /* Responsive */
 @media (max-width: 900px) {
-  .odv-body { grid-template-columns: 1fr; }
+  .odv-body { grid-template-columns: 1fr; align-items: start; }
   .odv-sidebar { position: static; }
+  .odv-tracker-steps { overflow-y: visible; }
   .odv-info-grid { grid-template-columns: repeat(2, 1fr); }
   .odv-controls { flex-direction: column; align-items: flex-start; }
 }
@@ -2727,7 +2818,6 @@
 [data-theme="dark"] .odv-status-pill { background: #0f1420; border-color: var(--border); }
 [data-theme="dark"] .odv-ctrl-btn { background: #0f1420; border-color: var(--border); color: var(--text); }
 [data-theme="dark"] .odv-ctrl-btn:hover { background: #0c2832; border-color: #0891b2; color: #67e8f9; }
-[data-theme="dark"] .odv-msg--right .odv-msg-text { background: #0b2730; border-color: #4c1d95; color: #a5f3fc; }
 [data-theme="dark"] .odv-tl-line { background: #2a3248; }
 [data-theme="dark"] .odv-tl-dot { background: #1a2035; border-color: #2a3248; }
 
@@ -3030,6 +3120,16 @@
    Phone/tablet adjustments. Kept together and mobile-only so the
    desktop layouts above are untouched. Standard points: 768 / 480.
    ════════════════════════════════════════════════════════════ */
+
+/* Orders detail (client + employee): on narrower screens let the detail card
+   flow and scroll as one instead of trapping the chat in a fixed-height pane. */
+@media (max-width: 1080px) {
+  .co-detail-body { flex-direction: column; overflow-y: auto; gap: 1.25rem; }
+  .co-detail-main { flex: none; overflow: visible; }
+  .co-conversation { flex: none; overflow: visible; }
+  .co-chat-window { max-height: 55vh; }
+}
+
 @media (max-width: 768px) {
   /* Command palette: drop the top offset closer to the top so the modal
      and on-screen keyboard both fit; sit lower than the topbar. */
@@ -3064,7 +3164,6 @@
   .co-list { height: auto; max-height: 45vh; }
   .co-detail { height: auto; }
   .co-detail-body { flex-direction: column; overflow: visible; }
-  .co-details-panel { max-width: none; min-width: 0; border-left: none; border-top: 1px solid var(--border); padding: 1.25rem 0 0; }
 
   /* Small 2-up grids that lacked a phone collapse */
   .odv-qa-row { grid-template-columns: 1fr; }

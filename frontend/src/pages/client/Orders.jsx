@@ -4,6 +4,7 @@ import { useSocket } from '../../context/SocketContext';
 import { Link, useLocation } from 'react-router-dom';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
+import ConversationEvent from '../../components/ConversationEvent';
 import { LuClipboard, LuFile, LuPaperclip, LuImage, LuDownload } from 'react-icons/lu';
 
 function fmtTime(iso) {
@@ -316,7 +317,18 @@ export default function ClientOrders() {
                     {(!activeOrder.messages || activeOrder.messages.length === 0) && (
                       <p className="chat-empty">No messages yet. Say hello!</p>
                     )}
-                    {activeOrder.messages?.map((msg) => {
+                    {activeOrder.messages?.map((msg, i) => {
+                      if (msg.kind === 'change-request' || msg.kind === 'review-submitted') {
+                        return (
+                          <ConversationEvent
+                            key={msg._id}
+                            msg={msg}
+                            index={i}
+                            messages={activeOrder.messages}
+                            orderStatus={activeOrder.status}
+                          />
+                        );
+                      }
                       const isMine = msg.senderRole === 'client';
                       return (
                         <div

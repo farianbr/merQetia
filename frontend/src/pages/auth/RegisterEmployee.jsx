@@ -18,7 +18,7 @@ export default function RegisterEmployee() {
     return (
       <div className="auth-container">
         <div className="auth-card">
-          <h1><BrandLogo /></h1>
+          <h1><BrandLogo variant="auto" /></h1>
           <h2>Invalid Invite Link</h2>
           <p className="error-msg">This invite link is missing a token. Please request a new invitation.</p>
           <p className="auth-footer"><Link to="/login">Back to login</Link></p>

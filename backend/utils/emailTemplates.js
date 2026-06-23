@@ -1,16 +1,17 @@
 /**
- * Brand palette (per logo do's): the wordmark stays neutral and only the
- * "Q" carries brand color. Email clients don't reliably render SVG/gradients,
- * so the Q uses a solid brand cyan rather than the full gradient symbol.
+ * Brand palette. The header carries the full merQetia wordmark as a
+ * CID-embedded PNG (cid:mqlogo) — the white lockup, since the header sits on
+ * the deep teal surface. CID embedding renders without the recipient having
+ * to "show images" and without relying on SVG support. See
+ * emailService.LOGO_ATTACHMENT.
  */
 const BRAND = {
   deep: '#0c3a46', // deep teal surface (header/footer)
   accent: '#0e7490', // cyan accent on light backgrounds (links, totals, CTA)
-  q: '#35c9f4', // bright cyan "Q" on the dark header
 };
 
-/** Wordmark for use on the dark teal header — neutral text, cyan Q. */
-const headerWordmark = `<span style="font-size:26px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">mer<span style="color:${BRAND.q};">Q</span>etia</span>`;
+/** Full white wordmark lockup for the dark teal header. */
+const headerWordmark = `<img src="cid:mqlogo" alt="merQetia" height="30" style="display:block;border:0;outline:none;height:30px;width:auto;"/>`;
 
 /**
  * HTML email template for order confirmation.

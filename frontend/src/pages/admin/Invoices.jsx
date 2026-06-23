@@ -168,6 +168,7 @@ export default function AdminInvoices() {
   const [actionLoading, setActionLoading] = useState(null);
   const [downloading, setDownloading] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [payTarget, setPayTarget] = useState(null); // invoice pending "mark paid" confirmation
 
   const fetchInvoices = async () => {
     setLoading(true);
@@ -220,6 +221,7 @@ export default function AdminInvoices() {
           inv._id === id ? { ...inv, status: 'paid', paidAt: new Date().toISOString() } : inv,
         ),
       );
+      setPayTarget(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to mark as paid');
     } finally {
@@ -383,7 +385,7 @@ export default function AdminInvoices() {
                             className="btn-sm btn-primary"
                             title="Mark as paid"
                             disabled={isActing}
-                            onClick={() => handleMarkPaid(inv._id)}
+                            onClick={() => setPayTarget(inv)}
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}
                           >
                             <LuCheck size={13} />
@@ -414,6 +416,39 @@ export default function AdminInvoices() {
           onClose={() => setShowCreate(false)}
           onCreated={fetchInvoices}
         />
+      )}
+
+      {payTarget && (
+        <div className="modal-overlay" onClick={() => actionLoading ? null : setPayTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Mark Invoice as Paid</h2>
+              <button className="pm-close-btn" onClick={() => setPayTarget(null)} disabled={!!actionLoading} aria-label="Close">✕</button>
+            </div>
+            <p style={{ fontSize: '.9rem', color: 'var(--text)', margin: '0 0 .5rem' }}>
+              Confirm payment of <strong>{usd.format(payTarget.amount)}</strong> for invoice{' '}
+              <strong>{payTarget.invoiceNumber}</strong>
+              {payTarget.orderId?.clientId?.name ? <> from <strong>{payTarget.orderId.clientId.name}</strong></> : null}.
+            </p>
+            <p style={{ fontSize: '.82rem', color: 'var(--text-muted)', margin: 0 }}>
+              This records the invoice as paid and timestamps it. You can't undo this.
+            </p>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setPayTarget(null)} disabled={!!actionLoading}>
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => handleMarkPaid(payTarget._id)}
+                disabled={actionLoading === payTarget._id + '-pay'}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}
+              >
+                <LuCheck size={14} />
+                {actionLoading === payTarget._id + '-pay' ? 'Marking…' : 'Confirm Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

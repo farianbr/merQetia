@@ -4,6 +4,10 @@ const messageSchema = new mongoose.Schema(
   {
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     senderRole: { type: String, enum: ['client', 'employee', 'admin'], required: true },
+    // 'message'          = normal chat
+    // 'change-request'   = client-requested revision (rendered specially)
+    // 'review-submitted' = employee submitted work for client review (rendered specially)
+    kind: { type: String, enum: ['message', 'change-request', 'review-submitted'], default: 'message' },
     text: { type: String, maxlength: [2000, 'Message cannot exceed 2000 characters'], default: '' },
     mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     attachments: [
@@ -84,8 +88,25 @@ const orderSchema = new mongoose.Schema(
       type: [messageSchema],
       default: [],
     },
+    statusHistory: {
+      type: [
+        {
+          status: { type: String },
+          at: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );
+
+// Stamp every status change (including the initial 'placed' on create) so the
+// lifecycle tracker can show when each stage was reached.
+orderSchema.pre('save', async function () {
+  if (this.isModified('status')) {
+    this.statusHistory.push({ status: this.status, at: new Date() });
+  }
+});
 
 module.exports = mongoose.model('Order', orderSchema);

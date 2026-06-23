@@ -4,6 +4,7 @@ import { getMyAssignments, acceptOrder, rejectOrder, submitForReview, sendMessag
 import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
+import ConversationEvent from '../../components/ConversationEvent';
 import { LuClipboard, LuFile, LuPaperclip, LuImage, LuDownload } from 'react-icons/lu';
 
 function fmtTime(iso) {
@@ -41,6 +42,85 @@ function getDisplayStatus(order) {
     return 'overdue';
   }
   return order.status;
+}
+
+/* Order details (services, brief, info, media) — shared by the inline brief
+   shown for new requests and the Details modal. */
+function OrderDetailsContent({ order, onViewMedia }) {
+  return (
+    <>
+      {/* Services */}
+      <div className="co-dp-section">
+        <span className="co-dp-label">Services</span>
+        <div className="co-dp-services-card">
+          {(order.services || []).map((s) => (
+            <div key={s._id} className="co-dp-service-row">
+              <span className="co-dp-service-name">{s.name}</span>
+              <span className="co-dp-service-price">${s.price?.toFixed(2)}</span>
+            </div>
+          ))}
+          <div className="co-dp-total-row">
+            <span>Total</span>
+            <span className="co-dp-total-amount">${order.totalPrice?.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Brief */}
+      {order.summary && (
+        <div className="co-dp-section">
+          <span className="co-dp-label">Brief</span>
+          <p className="co-dp-brief">{order.summary}</p>
+        </div>
+      )}
+
+      {/* Order Info */}
+      <div className="co-dp-section">
+        <span className="co-dp-label">Order Info</span>
+        <div className="co-dp-info-list">
+          <div className="co-dp-info-row">
+            <span className="co-dp-info-key">Order ID</span>
+            <span className="co-dp-info-val">#{order._id.slice(-6).toUpperCase()}</span>
+          </div>
+          <div className="co-dp-info-row">
+            <span className="co-dp-info-key">Status</span>
+            <span
+              className="co-dp-status-badge"
+              style={{ background: STATUS_COLORS[getDisplayStatus(order)] + '22', color: STATUS_COLORS[getDisplayStatus(order)] }}
+            >
+              {STATUS_LABEL[getDisplayStatus(order)]}
+            </span>
+          </div>
+          <div className="co-dp-info-row">
+            <span className="co-dp-info-key">Client</span>
+            <span className="co-dp-info-val">{order.clientId?.name || '—'}</span>
+          </div>
+          <div className="co-dp-info-row">
+            <span className="co-dp-info-key">Total</span>
+            <span className="co-dp-info-val co-dp-info-price">${order.totalPrice?.toFixed(2)}</span>
+          </div>
+          {order.deliveryDate && (
+            <div className="co-dp-info-row">
+              <span className="co-dp-info-key">Delivery Date</span>
+              <span className="co-dp-info-val">{new Date(order.deliveryDate).toLocaleDateString()}</span>
+            </div>
+          )}
+          <div className="co-dp-info-row">
+            <span className="co-dp-info-key">Placed</span>
+            <span className="co-dp-info-val">{new Date(order.createdAt).toLocaleDateString()}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* View All Media */}
+      <div className="co-dp-section">
+        <button className="co-dp-media-btn" onClick={onViewMedia}>
+          <LuImage size={15} />
+          View All Media
+        </button>
+      </div>
+    </>
+  );
 }
 
 export default function EmployeeOrders() {
@@ -120,7 +200,7 @@ export default function EmployeeOrders() {
     const target = orders.find((o) => o._id === pendingOrderId);
     if (target) {
       setActiveOrder(target);
-      setShowAttachments(target.status === 'assigned');
+      setShowAttachments(false);
       setPendingOrderId(null);
     }
   }, [pendingOrderId, orders]);
@@ -212,7 +292,7 @@ export default function EmployeeOrders() {
       <button
         key={o._id}
         className={`co-item ${isActive ? 'co-item--active' : ''} ${o.status === 'assigned' ? 'co-item--new-request' : ''}`}
-        onClick={() => { setActiveOrder(o); setMsgText(''); setAttachFiles([]); setError(''); setShowAttachments(o.status === 'assigned'); }}
+        onClick={() => { setActiveOrder(o); setMsgText(''); setAttachFiles([]); setError(''); setShowAttachments(false); }}
       >
         <div className="co-item-top">
           <span className="co-item-services">{serviceNames}</span>
@@ -301,7 +381,7 @@ export default function EmployeeOrders() {
               </div>
             </div>
 
-            {/* Body: main conversation col + optional details side panel */}
+            {/* Body: conversation (full width) */}
             <div className="co-detail-body">
               <div className="co-detail-main">
                 {/* Rejection note */}
@@ -311,13 +391,11 @@ export default function EmployeeOrders() {
                   </div>
                 )}
 
-                {/* Client requested changes (back in progress) */}
-                {activeOrder.status === 'accepted' && activeOrder.revisionNote && (
-                  <div className="co-review-panel">
-                    <div className="co-review-text">
-                      <strong>Client requested changes</strong>
-                      <span>{activeOrder.revisionNote}</span>
-                    </div>
+                {/* New requests have no conversation yet — surface the brief inline
+                    so the employee can review it before accepting. */}
+                {activeOrder.status === 'assigned' && (
+                  <div className="co-detail-inline-details">
+                    <OrderDetailsContent order={activeOrder} onViewMedia={() => setMediaModal(true)} />
                   </div>
                 )}
 
@@ -335,7 +413,18 @@ export default function EmployeeOrders() {
                     {(!activeOrder.messages || activeOrder.messages.length === 0) && (
                       <p className="chat-empty">No messages yet. Start the conversation!</p>
                     )}
-                    {activeOrder.messages?.map((msg) => {
+                    {activeOrder.messages?.map((msg, i) => {
+                      if (msg.kind === 'change-request' || msg.kind === 'review-submitted') {
+                        return (
+                          <ConversationEvent
+                            key={msg._id}
+                            msg={msg}
+                            index={i}
+                            messages={activeOrder.messages}
+                            orderStatus={activeOrder.status}
+                          />
+                        );
+                      }
                       const isMine = msg.senderRole === 'employee';
                       return (
                         <div
@@ -411,82 +500,6 @@ export default function EmployeeOrders() {
               )}
             </div>
               </div>
-
-              {/* Side: details panel (1/3) */}
-              {showAttachments && (
-                <div className="co-details-panel">
-                  {/* Services */}
-                  <div className="co-dp-section">
-                    <span className="co-dp-label">Services</span>
-                    <div className="co-dp-services-card">
-                      {(activeOrder.services || []).map((s) => (
-                        <div key={s._id} className="co-dp-service-row">
-                          <span className="co-dp-service-name">{s.name}</span>
-                          <span className="co-dp-service-price">${s.price?.toFixed(2)}</span>
-                        </div>
-                      ))}
-                      <div className="co-dp-total-row">
-                        <span>Total</span>
-                        <span className="co-dp-total-amount">${activeOrder.totalPrice?.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Brief */}
-                  {activeOrder.summary && (
-                    <div className="co-dp-section">
-                      <span className="co-dp-label">Brief</span>
-                      <p className="co-dp-brief">{activeOrder.summary}</p>
-                    </div>
-                  )}
-
-                  {/* Order Info */}
-                  <div className="co-dp-section">
-                    <span className="co-dp-label">Order Info</span>
-                    <div className="co-dp-info-list">
-                      <div className="co-dp-info-row">
-                        <span className="co-dp-info-key">Order ID</span>
-                        <span className="co-dp-info-val">#{activeOrder._id.slice(-6).toUpperCase()}</span>
-                      </div>
-                      <div className="co-dp-info-row">
-                        <span className="co-dp-info-key">Status</span>
-                        <span
-                          className="co-dp-status-badge"
-                          style={{ background: STATUS_COLORS[getDisplayStatus(activeOrder)] + '22', color: STATUS_COLORS[getDisplayStatus(activeOrder)] }}
-                        >
-                          {STATUS_LABEL[getDisplayStatus(activeOrder)]}
-                        </span>
-                      </div>
-                      <div className="co-dp-info-row">
-                        <span className="co-dp-info-key">Client</span>
-                        <span className="co-dp-info-val">{activeOrder.clientId?.name || '—'}</span>
-                      </div>
-                      <div className="co-dp-info-row">
-                        <span className="co-dp-info-key">Total</span>
-                        <span className="co-dp-info-val co-dp-info-price">${activeOrder.totalPrice?.toFixed(2)}</span>
-                      </div>
-                      {activeOrder.deliveryDate && (
-                        <div className="co-dp-info-row">
-                          <span className="co-dp-info-key">Delivery Date</span>
-                          <span className="co-dp-info-val">{new Date(activeOrder.deliveryDate).toLocaleDateString()}</span>
-                        </div>
-                      )}
-                      <div className="co-dp-info-row">
-                        <span className="co-dp-info-key">Placed</span>
-                        <span className="co-dp-info-val">{new Date(activeOrder.createdAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* View All Media */}
-                  <div className="co-dp-section">
-                    <button className="co-dp-media-btn" onClick={() => setMediaModal(true)}>
-                      <LuImage size={15} />
-                      View All Media
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         ) : (
@@ -496,6 +509,24 @@ export default function EmployeeOrders() {
           </div>
         )}
       </div>
+
+      {/* Details Modal */}
+      {showAttachments && activeOrder && (
+        <div className="modal-overlay" onClick={() => setShowAttachments(false)}>
+          <div className="modal modal--details" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-media-header">
+              <h2>Order Details</h2>
+              <button className="co-close-btn" onClick={() => setShowAttachments(false)}>✕</button>
+            </div>
+            <div className="co-details-modal-body">
+              <OrderDetailsContent
+                order={activeOrder}
+                onViewMedia={() => { setShowAttachments(false); setMediaModal(true); }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Accept Modal */}
       {acceptModal && (

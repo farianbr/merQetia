@@ -1,3 +1,20 @@
+const fs = require('fs');
+const path = require('path');
+
+/**
+ * The full merQetia wordmark (dark lockup, for the white invoice page),
+ * inlined as a base64 data URI so it always renders in the headless-Chrome
+ * PDF without depending on network/file access. Loaded once at module init.
+ */
+const LOGO_DATA_URI = (() => {
+  try {
+    const buf = fs.readFileSync(path.join(__dirname, '..', 'assets', 'merqetia-wordmark-dark.png'));
+    return `data:image/png;base64,${buf.toString('base64')}`;
+  } catch {
+    return '';
+  }
+})();
+
 /**
  * Generates an HTML string for an invoice.
  * @param {Object} invoice - Populated invoice document
@@ -41,10 +58,8 @@ const generateInvoiceHTML = (invoice) => {
     body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937; padding: 48px; font-size: 14px; }
 
     .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
-    /* Logo lockup: wordmark stays neutral, only the gradient "Q" symbol
-       carries brand color — per the logo do's. */
-    .brand { display: flex; align-items: center; font-size: 28px; font-weight: 800; color: #0c3a46; letter-spacing: -0.5px; }
-    .brand-q { height: 0.92em; width: auto; margin: 0 1px; }
+    /* Full merQetia wordmark lockup. */
+    .brand-logo { height: 40px; width: auto; display: block; }
 
     .invoice-meta { text-align: right; }
     .invoice-meta h2 { font-size: 20px; font-weight: 700; color: #0e7490; margin-bottom: 4px; }
@@ -91,7 +106,7 @@ const generateInvoiceHTML = (invoice) => {
 <body>
 
   <div class="header">
-    <div class="brand">mer<svg class="brand-q" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none"><defs><linearGradient id="mqSym" x1="22" y1="20" x2="84" y2="92" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#a3e35a"/><stop offset="0.42" stop-color="#33c8f4"/><stop offset="0.72" stop-color="#4aa6f6"/><stop offset="1" stop-color="#9b78f6"/></linearGradient></defs><g stroke="url(#mqSym)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"><path d="M34 24 H63 A14 14 0 0 1 77 38 V53"/><path d="M23 34 V63 A14 14 0 0 0 37 77 H60 L82 93"/></g></svg>etia</div>
+    <img class="brand-logo" src="${LOGO_DATA_URI}" alt="merQetia" />
     <div class="invoice-meta">
       <h2>${invoice.invoiceNumber}</h2>
       <p>Invoice</p>

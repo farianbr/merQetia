@@ -5,10 +5,11 @@ import { getEmployees } from '../../api/admin';
 import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
+import ConversationEvent from '../../components/ConversationEvent';
 import {
-  LuArrowLeft, LuCalendarDays, LuUserCog, LuSettings2,
+  LuCalendarDays, LuUserCog, LuSettings2,
   LuCheck, LuX, LuFileText, LuDownload, LuShieldCheck,
-  LuLayoutList, LuClipboardList, LuPaperclip, LuMessageSquare,
+  LuLayoutList, LuClipboardList, LuPaperclip, LuMessageSquare, LuRefreshCw,
 } from 'react-icons/lu';
 
 /* ─── helpers ─────────────────────────────────────── */
@@ -42,61 +43,164 @@ function fileSize(bytes) {
 }
 
 /* ─── Lifecycle Tracker sidebar ───────────────────── */
-const LIFECYCLE_STEPS = [
-  { key: 'placed',    label: 'Order Placed',   getSubtitle: (o) => fmtDate(o.createdAt) },
-  { key: 'assigned',  label: 'Brief Approved', getSubtitle: () => null },
-  { key: 'accepted',  label: 'In Progress',    getSubtitle: (o) => o.deliveryDate ? `Est. ${fmtDate(o.deliveryDate)}` : null },
-  { key: 'review',    label: 'Client Review',  getSubtitle: () => null },
-  { key: 'completed', label: 'Completed',      getSubtitle: () => null },
-];
-const STATUS_ORDER = ['placed', 'assigned', 'accepted', 'review', 'completed'];
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    + ' · ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
 
-function LifecycleTracker({ order }) {
-  const isRejected = order.status === 'rejected';
-  const activeIdx = isRejected ? 1 : STATUS_ORDER.indexOf(order.status);
+const STATUS_NODE_LABEL = {
+  review:    'Client Review',
+  completed: 'Completed',
+  rejected:  'Rejected',
+};
+
+/**
+ * Build the tracker timeline from the order's full status history merged with
+ * its change requests, in chronological order. Every revision round adds new
+ * nodes (Changes Requested → In Progress → Client Review …) rather than
+ * overwriting earlier ones, so the whole journey stays visible.
+ *
+ * The two opening milestones — Order Placed and Order Assigned — are always
+ * seeded first. They can't be derived reliably from statusHistory alone
+ * (orders predating status tracking, or whose history was only stamped from a
+ * later stage onward, would otherwise drop them), so we anchor them to known
+ * order fields.
+ */
+function buildTimeline(order) {
+  // First time each status was reached → its date.
+  const reachedAt = {};
+  (order.statusHistory || []).forEach((h) => {
+    if (h?.status && !reachedAt[h.status]) reachedAt[h.status] = h.at;
+  });
+
+  // Dynamic events: everything from "accepted" onward, plus change requests.
+  // (placed/assigned are handled separately as fixed opening milestones.)
+  const events = [];
+  if ((order.statusHistory || []).length) {
+    order.statusHistory.forEach((h) => {
+      if (h?.status && h.status !== 'placed' && h.status !== 'assigned') {
+        events.push({ kind: 'status', status: h.status, at: h.at });
+      }
+    });
+  } else {
+    // Legacy orders saved before status history was tracked: synthesize a
+    // best-effort sequence from the first time each status was seen.
+    ['accepted', 'review', 'completed', 'rejected'].forEach((s) => {
+      if (reachedAt[s]) events.push({ kind: 'status', status: s, at: reachedAt[s] });
+    });
+  }
+  (order.messages || [])
+    .filter((m) => m.kind === 'change-request')
+    .forEach((m) => events.push({ kind: 'change', at: m.createdAt, note: m.text }));
+
+  // Chronological; when timestamps tie (a change request and the bounce-back to
+  // In Progress are saved together), the change request comes first.
+  events.sort((a, b) => {
+    const ta = new Date(a.at).getTime();
+    const tb = new Date(b.at).getTime();
+    if (ta !== tb) return ta - tb;
+    return (a.kind === 'change' ? 0 : 1) - (b.kind === 'change' ? 0 : 1);
+  });
+
+  // Always open with Order Placed, then Order Assigned (when the order has ever
+  // been assigned), before the dynamic events.
+  const nodes = [];
+  nodes.push({ type: 'placed', label: 'Order Placed', at: reachedAt.placed || order.createdAt });
+  const wasAssigned =
+    order.assignedEmployee ||
+    reachedAt.assigned ||
+    ['assigned', 'accepted', 'review', 'completed'].includes(order.status);
+  if (wasAssigned) {
+    nodes.push({ type: 'assigned', label: 'Order Assigned', at: reachedAt.assigned });
+  }
+
+  let changes = 0;
+  events.forEach((e) => {
+    if (e.kind === 'change') {
+      changes += 1;
+      nodes.push({ type: 'change', label: 'Changes Requested', at: e.at, note: e.note });
+    } else if (e.status === 'accepted') {
+      nodes.push({
+        type: 'progress',
+        label: changes === 0 ? 'In Progress' : `In Progress · Round ${changes + 1}`,
+        at: e.at,
+        revising: changes > 0,
+      });
+    } else if (STATUS_NODE_LABEL[e.status]) {
+      nodes.push({ type: e.status, label: STATUS_NODE_LABEL[e.status], at: e.at, note: e.status === 'rejected' ? order.rejectionReason : undefined });
+    }
+  });
+
+  return nodes;
+}
+
+function LifecycleTracker({ order, maxHeight }) {
+  const terminal = order.status === 'completed' || order.status === 'rejected';
+  const nodes = buildTimeline(order);
+  // Active marker sits on the most recent real node unless the order is in a
+  // terminal state (everything is then settled).
+  const activeIdx = terminal ? -1 : nodes.length - 1;
+  // Show the final goal as an upcoming step while the order is still in flight.
+  if (!terminal && !nodes.some((n) => n.type === 'completed')) {
+    nodes.push({ type: 'completed', label: 'Completed', upcoming: true });
+  }
 
   return (
-    <div className="odv-tracker">
+    <div className="odv-tracker" style={maxHeight ? { maxHeight } : undefined}>
       <h3 className="odv-tracker-title">Lifecycle Tracker</h3>
       <div className="odv-tracker-steps">
-        {LIFECYCLE_STEPS.map((step, i) => {
-          const done = i < activeIdx;
-          const active = !isRejected && i === activeIdx;
-          const sub = step.getSubtitle(order);
+        {nodes.map((node, i) => {
+          const isLast = i === nodes.length - 1;
+          const active = i === activeIdx;
+          const isChange = node.type === 'change';
+          const isRejected = node.type === 'rejected';
+          const done = !node.upcoming && !active && !isRejected;
+          const dotCls = isRejected
+            ? 'odv-tl-dot--rejected'
+            : isChange
+              ? 'odv-tl-dot--revised'
+              : active
+                ? 'odv-tl-dot--active'
+                : done
+                  ? 'odv-tl-dot--done'
+                  : '';
           return (
-            <div key={step.key} className="odv-tl-item">
+            <div key={`${node.type}-${i}`} className="odv-tl-item">
               <div className="odv-tl-left">
-                <div className={`odv-tl-dot ${done ? 'odv-tl-dot--done' : active ? 'odv-tl-dot--active' : ''}`}>
-                  {done && <LuCheck size={10} strokeWidth={3} color="#fff" />}
-                  {active && <span className="odv-tl-inner" />}
+                <div className={`odv-tl-dot ${dotCls}`}>
+                  {isRejected
+                    ? <LuX size={10} strokeWidth={3} color="#fff" />
+                    : isChange
+                      ? <LuRefreshCw size={10} strokeWidth={3} color="#fff" />
+                      : done
+                        ? <LuCheck size={10} strokeWidth={3} color="#fff" />
+                        : active ? <span className="odv-tl-inner" /> : null}
                 </div>
-                {i < LIFECYCLE_STEPS.length - 1 && (
-                  <div className={`odv-tl-line ${done || active ? 'odv-tl-line--done' : ''}`} />
+                {!isLast && (
+                  <div className={`odv-tl-line ${done || isChange ? 'odv-tl-line--done' : ''}`} />
                 )}
               </div>
               <div className="odv-tl-content">
-                <span className={`odv-tl-label ${active ? 'odv-tl-label--active' : done ? 'odv-tl-label--done' : ''}`}>
-                  {step.label}
+                <span
+                  className={`odv-tl-label ${active ? 'odv-tl-label--active' : done && !isChange ? 'odv-tl-label--done' : ''}`}
+                  style={isRejected ? { color: '#ef4444' } : undefined}
+                >
+                  {node.label}
                 </span>
-                {active && <span className="odv-tl-active-tag">Currently Active</span>}
-                {sub && <span className="odv-tl-sub">{sub}</span>}
+                {active && (
+                  <span className={`odv-tl-active-tag ${node.revising ? 'odv-tl-active-tag--revising' : ''}`}>
+                    {node.revising ? 'Revising' : 'Currently Active'}
+                  </span>
+                )}
+                {node.note && <span className="odv-tl-revision">{node.note}</span>}
+                {node.at && <span className="odv-tl-sub">{fmtDateTime(node.at)}</span>}
               </div>
             </div>
           );
         })}
-        {isRejected && (
-          <div className="odv-tl-item">
-            <div className="odv-tl-left">
-              <div className="odv-tl-dot odv-tl-dot--rejected">
-                <LuX size={10} strokeWidth={3} color="#fff" />
-              </div>
-            </div>
-            <div className="odv-tl-content">
-              <span className="odv-tl-label" style={{ color: '#ef4444' }}>Rejected</span>
-              {order.rejectionReason && <span className="odv-tl-sub">{order.rejectionReason}</span>}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -140,7 +244,28 @@ export default function AdminOrderDetail() {
   const [statusError, setStatusError] = useState('');
 
   const chatBottomRef = useRef(null);
+  const mainColRef = useRef(null);
+  const [trackerMax, setTrackerMax] = useState(null);
   const socket = useSocket();
+
+  // Cap the lifecycle tracker to the left column's height so it never grows
+  // past the questionnaires — the step list scrolls internally instead. On
+  // narrow screens the columns stack, so the cap is removed.
+  useEffect(() => {
+    const el = mainColRef.current;
+    if (!el) return undefined;
+    const measure = () => {
+      setTrackerMax(window.innerWidth <= 900 ? null : el.offsetHeight);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener('resize', measure);
+    measure();
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [order]);
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -262,17 +387,23 @@ export default function AdminOrderDetail() {
       {/* ── Admin Controls bar ── */}
       <div className="odv-controls">
         <div className="odv-controls-left">
-          <LuShieldCheck size={16} color="#0e7490" />
+          <LuShieldCheck size={18} color="#d97706" />
           <div className="odv-controls-text">
             <span className="odv-controls-label">Administrative Controls</span>
             <span className="odv-controls-sub">Override settings for this specific order instance.</span>
           </div>
         </div>
         <div className="odv-controls-btns">
-          {/* Assign employee — only when no employee assigned (placed) */}
+          {/* Assign employee — when no employee assigned (placed) */}
           {order.status === 'placed' && (
-            <button className="odv-ctrl-btn" onClick={() => setModal('assign')}>
+            <button className="odv-ctrl-btn" onClick={() => { setSelectedEmployee(''); setAssignError(''); setModal('assign'); }}>
               <LuUserCog size={14} color="#06b6d4" /> Assign Employee
+            </button>
+          )}
+          {/* Reassign — before the employee accepts (still assigned) */}
+          {order.status === 'assigned' && (
+            <button className="odv-ctrl-btn" onClick={() => { setSelectedEmployee(''); setAssignError(''); setModal('assign'); }}>
+              <LuUserCog size={14} color="#06b6d4" /> Reassign Employee
             </button>
           )}
           {/* Change delivery date — only when accepted (in progress) */}
@@ -300,7 +431,7 @@ export default function AdminOrderDetail() {
       <div className="odv-body">
 
         {/* ── LEFT COLUMN ── */}
-        <div className="odv-main">
+        <div className="odv-main" ref={mainColRef}>
 
           {/* Core Information */}
           <section className="odv-card">
@@ -374,14 +505,6 @@ export default function AdminOrderDetail() {
             </section>
           )}
 
-          {/* Changes requested by client (back in progress) */}
-          {order.status === 'accepted' && order.revisionNote && (
-            <section className="odv-card odv-card--warn">
-              <h2 className="odv-card-title">Changes Requested by Client</h2>
-              <p className="odv-brief-text">{order.revisionNote}</p>
-            </section>
-          )}
-
           {/* Shared Files */}
           {allAttachments.length > 0 && (
             <section className="odv-card">
@@ -409,73 +532,89 @@ export default function AdminOrderDetail() {
             </section>
           )}
 
-          {/* Communication Log */}
-          <section className="odv-card">
-            <div className="odv-card-header-row">
-              <h2 className="odv-card-title" style={{ margin: 0 }}><LuMessageSquare size={16} color="#3b82f6" />Communication Log</h2>
-              {order.messages?.length > 0 && (
-                <span className="odv-msg-count">{order.messages.length} message{order.messages.length !== 1 ? 's' : ''}</span>
-              )}
-              <span className="odv-readonly-tag">Read-Only</span>
-            </div>
-
-            {!isConvoOpen ? (
-              <p className="odv-conv-empty">Conversation opens once the employee accepts the order.</p>
-            ) : (!order.messages || order.messages.length === 0) ? (
-              <p className="odv-conv-empty">No messages yet.</p>
-            ) : (
-              <div className="odv-chat">
-                {order.messages.map((msg) => {
-                  const isClient = msg.senderRole === 'client';
-                  const name = msg.sender?.name || '—';
-                  const initials = name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-                  const avatarBg = isClient ? '#3b82f6' : '#06b6d4';
-                  return (
-                    <div key={msg._id} className={`odv-msg ${isClient ? 'odv-msg--left' : 'odv-msg--right'}`}>
-                      {isClient && (
-                        <span className="odv-msg-avatar" style={{ background: avatarBg }}>{initials}</span>
-                      )}
-                      <div className="odv-msg-body">
-                        <div className="odv-msg-meta">
-                          <span className="odv-msg-name">{name}</span>
-                          <span className="odv-msg-time">
-                            {new Date(msg.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            {', '}
-                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        {msg.text && <p className="odv-msg-text">{msg.text}</p>}
-                        <ChatAttachments attachments={msg.attachments} onImageClick={(src, nm) => setLightbox({ src, name: nm })} />
-                      </div>
-                      {!isClient && (
-                        <span className="odv-msg-avatar" style={{ background: avatarBg }}>{initials}</span>
-                      )}
-                    </div>
-                  );
-                })}
-                <div ref={chatBottomRef} />
-              </div>
-            )}
-          </section>
         </div>
 
         {/* ── RIGHT COLUMN — Lifecycle Tracker ── */}
         <div className="odv-sidebar">
-          <LifecycleTracker order={order} />
+          <LifecycleTracker order={order} maxHeight={trackerMax} />
         </div>
       </div>
 
+      {/* ── Communication Log (full width) ── */}
+      <section className="odv-card odv-convo-card odv-convo-full">
+          <div className="odv-card-header-row">
+            <h2 className="odv-card-title" style={{ margin: 0 }}><LuMessageSquare size={16} color="#3b82f6" />Communication Log</h2>
+            {order.messages?.length > 0 && (
+              <span className="odv-msg-count">{order.messages.length} message{order.messages.length !== 1 ? 's' : ''}</span>
+            )}
+            <span className="odv-readonly-tag">Read-Only</span>
+          </div>
+
+          {!isConvoOpen ? (
+            <p className="odv-conv-empty">Conversation opens once the employee accepts the order.</p>
+          ) : (!order.messages || order.messages.length === 0) ? (
+            <p className="odv-conv-empty">No messages yet.</p>
+          ) : (
+            <div className="odv-chat">
+              {order.messages.map((msg, i) => {
+                if (msg.kind === 'change-request' || msg.kind === 'review-submitted') {
+                  return (
+                    <ConversationEvent
+                      key={msg._id}
+                      msg={msg}
+                      index={i}
+                      messages={order.messages}
+                      orderStatus={order.status}
+                    />
+                  );
+                }
+                // Admin is a read-only viewer, so every message is left-aligned —
+                // the right side is reserved for "you" in two-party chats only.
+                const isClient = msg.senderRole === 'client';
+                const name = msg.sender?.name || '—';
+                const initials = name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+                const avatarBg = isClient ? '#3b82f6' : '#06b6d4';
+                return (
+                  <div key={msg._id} className="odv-msg odv-msg--left">
+                    <span className="odv-msg-avatar" style={{ background: avatarBg }}>{initials}</span>
+                    <div className="odv-msg-body">
+                      <div className="odv-msg-meta">
+                        <span className="odv-msg-name">{name}</span>
+                        <span className="odv-msg-time">
+                          {new Date(msg.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {', '}
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {msg.text && <p className="odv-msg-text">{msg.text}</p>}
+                      <ChatAttachments attachments={msg.attachments} onImageClick={(src, nm) => setLightbox({ src, name: nm })} />
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={chatBottomRef} />
+            </div>
+          )}
+      </section>
+
       {/* ── Modals ── */}
       {modal === 'assign' && (
-        <Modal title="Assign Employee" onClose={() => { setModal(null); setAssignError(''); }}>
+        <Modal title={order.status === 'assigned' ? 'Reassign Employee' : 'Assign Employee'} onClose={() => { setModal(null); setAssignError(''); }}>
           {assignError && <p className="error-msg">{assignError}</p>}
+          {order.status === 'assigned' && order.assignedEmployee && (
+            <p style={{ fontSize: '.88rem', color: '#6b7280', marginBottom: 12 }}>
+              Currently assigned to <strong>{order.assignedEmployee.name}</strong>. Pick a different employee to reassign before they accept.
+            </p>
+          )}
           <div className="form-group">
             <label className="form-label">Select employee</label>
             <select className="input" value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)}>
               <option value="">Select employee…</option>
-              {employees.map((emp) => (
-                <option key={emp._id} value={emp._id}>{emp.name} — {emp.email}</option>
-              ))}
+              {employees
+                .filter((emp) => emp._id !== (order.assignedEmployee?._id || order.assignedEmployee))
+                .map((emp) => (
+                  <option key={emp._id} value={emp._id}>{emp.name} — {emp.email}</option>
+                ))}
             </select>
           </div>
           <div className="modal-actions">

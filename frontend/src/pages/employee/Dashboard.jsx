@@ -137,7 +137,9 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [order?.updates?.length]);
 
-  const canMessage = order.status === 'accepted' || order.status === 'completed';
+  // Internal admin↔employee thread — usable as soon as the order is assigned,
+  // so the employee can raise questions with the team before accepting.
+  const canMessage = ['assigned', 'accepted', 'review', 'completed'].includes(order.status);
 
   // Load mentionable participants (admins + assigned employee) once the panel opens.
   useEffect(() => {
@@ -195,7 +197,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
           {!canMessage ? (
             <div className="mq-panel-placeholder">
               <LuMessageSquare size={32} color="#d1d5db" />
-              <p>Accept this order to start the conversation.</p>
+              <p>Updates open up once this order is assigned to you.</p>
             </div>
           ) : (!order.updates || order.updates.length === 0) ? (
             <div className="mq-panel-placeholder">

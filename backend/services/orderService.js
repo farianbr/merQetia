@@ -189,7 +189,35 @@ const getAllOrders = async ({ page = 1, limit = 20, status } = {}) => {
     Order.countDocuments(filter),
   ]);
 
-  return { orders, pagination: { total, page, pages: Math.ceil(total / limit) } };
+  const ordersWithInvoice = await attachPrimaryInvoice(orders);
+
+  return { orders: ordersWithInvoice, pagination: { total, page, pages: Math.ceil(total / limit) } };
+};
+
+/**
+ * Attach each order's primary invoice (the "full" invoice, or the oldest
+ * auto-generated one) so callers can surface payment status. Returns plain
+ * objects with an `invoice` field (or null).
+ */
+const attachPrimaryInvoice = async (orders) => {
+  const orderIds = orders.map((o) => o._id);
+  const invoices = await Invoice.find({ orderId: { $in: orderIds } })
+    .select('orderId status paidAt amount invoiceNumber type')
+    .sort({ createdAt: 1 });
+
+  const invoiceByOrder = {};
+  for (const inv of invoices) {
+    const key = inv.orderId.toString();
+    if (!invoiceByOrder[key] || inv.type === 'full') {
+      invoiceByOrder[key] = inv;
+    }
+  }
+
+  return orders.map((o) => {
+    const obj = o.toObject();
+    obj.invoice = invoiceByOrder[o._id.toString()] || null;
+    return obj;
+  });
 };
 
 /**
@@ -211,26 +239,7 @@ const getClientOrders = async ({ clientId, page = 1, limit = 20 }) => {
     Order.countDocuments({ clientId }),
   ]);
 
-  // Attach primary invoice to each order
-  const orderIds = orders.map((o) => o._id);
-  const invoices = await Invoice.find({ orderId: { $in: orderIds } })
-    .select('orderId status paidAt amount invoiceNumber type')
-    .sort({ createdAt: 1 });
-
-  const invoiceByOrder = {};
-  for (const inv of invoices) {
-    const key = inv.orderId.toString();
-    // Full invoice takes priority; otherwise keep first (oldest = auto-generated)
-    if (!invoiceByOrder[key] || inv.type === 'full') {
-      invoiceByOrder[key] = inv;
-    }
-  }
-
-  const ordersWithInvoice = orders.map((o) => {
-    const obj = o.toObject();
-    obj.invoice = invoiceByOrder[o._id.toString()] || null;
-    return obj;
-  });
+  const ordersWithInvoice = await attachPrimaryInvoice(orders);
 
   return { orders: ordersWithInvoice, pagination: { total, page, pages: Math.ceil(total / limit) } };
 };
@@ -256,7 +265,9 @@ const getOrderById = async (id) => {
 };
 
 /**
- * Admin assigns an employee to an order (only placed → assigned)
+ * Admin assigns an employee to an order. Allowed while the order is unaccepted:
+ *   placed   → assigned (first assignment)
+ *   assigned → assigned (reassign to a different employee before they accept)
  */
 const assignEmployee = async (orderId, employeeId) => {
   const employee = await User.findById(employeeId);
@@ -273,17 +284,29 @@ const assignEmployee = async (orderId, employeeId) => {
     throw err;
   }
 
-  if (order.status !== 'placed') {
-    const err = new Error('Only placed orders can be assigned');
+  if (order.status !== 'placed' && order.status !== 'assigned') {
+    const err = new Error('Orders can only be (re)assigned before they are accepted');
     err.statusCode = 400;
     throw err;
   }
+
+  const previousEmployeeId = order.assignedEmployee;
+  if (previousEmployeeId && previousEmployeeId.toString() === employeeId.toString()) {
+    const err = new Error('This employee is already assigned to the order');
+    err.statusCode = 400;
+    throw err;
+  }
+  const isReassignment = !!previousEmployeeId;
 
   order.assignedEmployee = employeeId;
   order.status = 'assigned';
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  // Notify the previously-assigned employee that the order was reassigned away.
+  if (isReassignment) {
+    pushNotification(previousEmployeeId, order._id, orderNum, 'status', 'Order Reassigned', `Order ${orderNum} has been reassigned to another employee and is no longer in your queue.`);
+  }
   pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Assigned', `Your order ${orderNum} has been assigned to an employee. They will review and respond shortly.`);
   pushNotification(employeeId, order._id, orderNum, 'status', 'New Order Assigned to You', `Order ${orderNum} from a client has been assigned to you. Please review and accept or decline.`);
 
@@ -414,6 +437,14 @@ const submitForReview = async (orderId, employeeId) => {
 
   order.status = 'review';
   order.revisionNote = null; // clear any prior change request
+  // Record the submission in the conversation so all parties see the milestone
+  // inline (mirrors how change requests are preserved).
+  order.messages.push({
+    sender: employeeId,
+    senderRole: 'employee',
+    kind: 'review-submitted',
+    text: '',
+  });
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
@@ -492,6 +523,14 @@ const requestChanges = async (orderId, clientId, note) => {
 
   order.status = 'accepted';
   order.revisionNote = note || null;
+  // Persist every change request in the conversation as a special message so
+  // the full revision history is preserved (not just the latest note).
+  order.messages.push({
+    sender: clientId,
+    senderRole: 'client',
+    kind: 'change-request',
+    text: note || '',
+  });
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;

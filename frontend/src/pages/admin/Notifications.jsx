@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
-import { LuActivity, LuMessageSquare, LuBell } from 'react-icons/lu';
+import { LuActivity, LuMessageSquare, LuBell, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
 
 const PAGE_SIZE = 10;
 
@@ -23,23 +23,11 @@ const TYPE_ICON = {
 export default function AdminNotifications() {
   const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
   const navigate = useNavigate();
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const sentinelRef = useRef(null);
+  const [page, setPage] = useState(1);
 
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, notifications.length));
-        }
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [notifications.length]);
+  const totalPages = Math.max(1, Math.ceil(notifications.length / PAGE_SIZE));
+  // Derive the in-range page so a shrinking list never strands us on a missing page.
+  const safePage = Math.min(page, totalPages);
 
   const handleClick = (n) => {
     markRead(n._id);
@@ -50,8 +38,8 @@ export default function AdminNotifications() {
     }
   };
 
-  const visible = notifications.slice(0, visibleCount);
-  const hasMore = visibleCount < notifications.length;
+  const start = (safePage - 1) * PAGE_SIZE;
+  const visible = notifications.slice(start, start + PAGE_SIZE);
 
   return (
     <div className="nf-page">
@@ -94,10 +82,29 @@ export default function AdminNotifications() {
                 {!n.read && <span className="nf-item-dot" />}
               </div>
             ))}
-            {hasMore && <div ref={sentinelRef} className="nf-sentinel" />}
           </>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="nf-pagination">
+          <button
+            className="nf-page-btn"
+            disabled={safePage === 1}
+            onClick={() => setPage(Math.max(1, safePage - 1))}
+          >
+            <LuChevronLeft size={16} /> Prev
+          </button>
+          <span className="nf-page-info">Page {safePage} of {totalPages}</span>
+          <button
+            className="nf-page-btn"
+            disabled={safePage === totalPages}
+            onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+          >
+            Next <LuChevronRight size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

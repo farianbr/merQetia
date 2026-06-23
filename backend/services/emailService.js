@@ -1,7 +1,19 @@
+const path = require('path');
 const { sendEmail } = require('../utils/mailer');
 const { generatePDF } = require('../utils/pdfGenerator');
 const { orderConfirmationHTML, newOrderAdminHTML, orderAssignedEmployeeHTML } = require('../utils/emailTemplates');
 const { getInvoiceById } = require('./invoiceService');
+
+/**
+ * Inline brand logo (the full white wordmark lockup) referenced as cid:mqlogo
+ * in the email header. Embedded via CID so it renders without the recipient
+ * having to "show images" and without relying on SVG support.
+ */
+const LOGO_ATTACHMENT = {
+  filename: 'merqetia-logo.png',
+  path: path.join(__dirname, '..', 'assets', 'merqetia-wordmark-white.png'),
+  cid: 'mqlogo',
+};
 
 /**
  * Send an order confirmation email with the invoice PDF attached.
@@ -43,6 +55,7 @@ const sendOrderConfirmation = async ({ order, invoice, client }) => {
       subject: `Order Confirmed — ${invoice.invoiceNumber}`,
       html,
       attachments: [
+        LOGO_ATTACHMENT,
         {
           filename: `${invoice.invoiceNumber}.pdf`,
           content: pdfBuffer,
@@ -68,6 +81,7 @@ const sendNewOrderAdminAlert = async ({ admins, clientName, services, orderId, o
       to: admin.email,
       subject: `New Order ${orderNum} — Assign Employee`,
       html,
+      attachments: [LOGO_ATTACHMENT],
     }).catch((err) => console.error('[Email] Failed to send admin alert:', err.message));
   }
 };
@@ -83,6 +97,7 @@ const sendOrderAssignedEmployee = async ({ employee, clientName, services, order
     to: employee.email,
     subject: `Order ${orderNum} Assigned to You`,
     html,
+    attachments: [LOGO_ATTACHMENT],
   }).catch((err) => console.error('[Email] Failed to send employee assignment email:', err.message));
 };
 

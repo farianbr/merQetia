@@ -25,7 +25,7 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1><BrandLogo /></h1>
+        <h1><BrandLogo variant="auto" /></h1>
         <h2>Sign In</h2>
         {error && <p className="error-msg">{error}</p>}
         <form onSubmit={handleSubmit(onSubmit)}>
