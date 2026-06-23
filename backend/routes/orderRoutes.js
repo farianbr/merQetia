@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate, setDeliveryDate, resetStatus } = require('../controllers/orderController');
+const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus } = require('../controllers/orderController');
 const { protect } = require('../middlewares/authMiddleware');
 const { authorize } = require('../middlewares/roleMiddleware');
 const { validateOrder, validateAssign } = require('../middlewares/validators');
@@ -35,6 +35,9 @@ router.post('/:id/messages', protect, authorize('client', 'employee'), upload.ar
 
 // Admin or employee posts an internal update (admin ↔ employee only)
 router.post('/:id/updates', protect, authorize('admin', 'employee'), upload.array('files', 5), postUpdate);
+
+// Admin or assigned employee — staff that can be @mentioned on this order's updates
+router.get('/:id/participants', protect, authorize('admin', 'employee'), getParticipants);
 
 // Admin overrides delivery date on an accepted order
 router.patch('/:id/delivery-date', protect, authorize('admin'), setDeliveryDate);

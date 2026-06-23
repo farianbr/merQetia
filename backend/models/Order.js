@@ -5,6 +5,7 @@ const messageSchema = new mongoose.Schema(
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     senderRole: { type: String, enum: ['client', 'employee', 'admin'], required: true },
     text: { type: String, maxlength: [2000, 'Message cannot exceed 2000 characters'], default: '' },
+    mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     attachments: [
       {
         originalName: { type: String },

@@ -1892,6 +1892,53 @@
 .mq-panel-input-row { display: flex; gap: .45rem; align-items: center; }
 .mq-panel-input-text { /* composes .field */ flex: 1; padding: .55rem .75rem; font-size: .9rem; }
 
+/* @mention highlight inside posted updates */
+.mq-mention {
+  color: var(--brand, #0e7490);
+  background: rgba(14, 116, 144, .1);
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 0 .15rem;
+}
+
+/* @mention autocomplete */
+.mq-mention-wrap { position: relative; flex: 1; display: flex; }
+.mq-mention-wrap .mq-panel-input-text { width: 100%; }
+.mq-mention-menu {
+  position: absolute;
+  bottom: calc(100% + .35rem);
+  left: 0;
+  right: 0;
+  max-height: 12rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: .25rem;
+  list-style: none;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+  z-index: 200;
+}
+.mq-mention-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .4rem .55rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: .875rem;
+}
+.mq-mention-item--active { background: rgba(14, 116, 144, .1); }
+.mq-mention-item-name { color: var(--text, #111827); font-weight: 500; }
+.mq-mention-item-role {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  color: var(--text-muted, #6b7280);
+}
+
 @media (max-width: 860px) {
   .mq-updates-panel { width: 100%; }
   .mq-panel-overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 149; }

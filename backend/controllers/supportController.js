@@ -1,5 +1,6 @@
 const SupportRequest = require('../models/SupportRequest');
 const { sendEmail } = require('../utils/mailer');
+const { emitToStaff } = require('../socket');
 
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || process.env.MAIL_USER || 'support@merqetia.com';
 
@@ -51,6 +52,9 @@ const createRequest = async (req, res, next) => {
       console.error('[Support] inbox notify failed:', err.message),
     );
 
+    // Live-update the support center for all staff
+    emitToStaff('support:new', { request });
+
     res.status(201).json({ success: true, message: 'Your message has been sent.', request });
   } catch (err) {
     next(err);
@@ -96,6 +100,9 @@ const updateStatus = async (req, res, next) => {
       { new: true },
     );
     if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
+
+    emitToStaff('support:updated', { request });
+
     res.status(200).json({ success: true, request });
   } catch (err) {
     next(err);
@@ -133,6 +140,8 @@ const replyToRequest = async (req, res, next) => {
     request.reply = { message, repliedAt: new Date(), repliedBy: req.user.id };
     request.status = 'resolved';
     await request.save();
+
+    emitToStaff('support:updated', { request });
 
     res.status(200).json({ success: true, request });
   } catch (err) {

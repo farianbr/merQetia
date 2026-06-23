@@ -6,6 +6,7 @@ const Invoice = require('../models/Invoice');
 const { generateOrderSummary } = require('./aiService');
 const { generateInvoice } = require('./invoiceService');
 const { sendOrderConfirmation, sendNewOrderAdminAlert, sendOrderAssignedEmployee } = require('./emailService');
+const { emitToUser, emitToAdmins } = require('../socket');
 
 const STATUS_LABEL = {
   placed: 'Placed',
@@ -26,7 +27,23 @@ const pushNotification = (userId, orderId, orderNum, type, typeLabel, body) => {
     typeLabel,
     title: `Order ${orderNum}`,
     body,
-  }).catch(() => {});
+  })
+    // Push the new notification live to the recipient's open sessions
+    .then((notif) => emitToUser(userId, 'notification:new', notif.toObject()))
+    .catch(() => {});
+};
+
+/**
+ * Push a populated order to everyone involved (client, assigned employee, admins)
+ * so their open lists / detail pages update without a refresh.
+ */
+const broadcastOrder = (order, event = 'order:updated') => {
+  const payload = { orderId: order._id.toString(), order };
+  const clientId = order.clientId?._id || order.clientId;
+  const employeeId = order.assignedEmployee?._id || order.assignedEmployee;
+  emitToUser(clientId, event, payload);
+  if (employeeId) emitToUser(employeeId, event, payload);
+  emitToAdmins(event, payload);
 };
 
 const POPULATE_ORDER = [
@@ -35,7 +52,28 @@ const POPULATE_ORDER = [
   { path: 'assignedEmployee', select: 'name email' },
   { path: 'messages.sender', select: 'name' },
   { path: 'updates.sender', select: 'name' },
+  { path: 'updates.mentions', select: 'name' },
 ];
+
+/**
+ * Resolve the staff who participate in an order's internal updates:
+ * all admins plus the assigned employee. Used to power @mentions and to
+ * validate that a mention targets a real participant.
+ */
+const getOrderParticipants = async (order) => {
+  const admins = await User.find({ role: 'admin' }).select('name role');
+  const participants = admins.map((a) => ({ _id: a._id, name: a.name, role: a.role }));
+
+  if (order.assignedEmployee) {
+    const empId = order.assignedEmployee._id || order.assignedEmployee;
+    if (!participants.some((p) => p._id.toString() === empId.toString())) {
+      const emp = await User.findById(empId).select('name role');
+      if (emp) participants.push({ _id: emp._id, name: emp.name, role: emp.role });
+    }
+  }
+
+  return participants;
+};
 
 /**
  * Validate that answers cover all required questions for every service.
@@ -119,6 +157,11 @@ const createOrder = async ({ clientId, serviceIds, answers = {} }) => {
       )
     );
   }).catch(() => {});
+
+  // Surface the new order live on admin lists (fire-and-forget)
+  Order.findById(order._id).populate(POPULATE_ORDER)
+    .then((populated) => { if (populated) broadcastOrder(populated, 'order:created'); })
+    .catch(() => {});
 
   return order;
 };
@@ -257,7 +300,9 @@ const assignEmployee = async (orderId, employeeId) => {
     });
   }).catch(() => {});
 
-  return order.populate(POPULATE_ORDER);
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
 };
 
 /**
@@ -294,7 +339,9 @@ const acceptOrder = async (orderId, employeeId, deliveryDate) => {
     admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Accepted by Employee', `Order ${orderNum} has been accepted by the assigned employee. Delivery date set to ${fmtDelivery}.`));
   }).catch(() => {});
 
-  return order.populate(POPULATE_ORDER);
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
 };
 
 /**
@@ -336,7 +383,9 @@ const rejectOrder = async (orderId, employeeId, reason) => {
     admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Rejected by Employee', adminBody));
   }).catch(() => {});
 
-  return order.populate(POPULATE_ORDER);
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
 };
 
 /**
@@ -371,7 +420,9 @@ const completeOrder = async (orderId, employeeId) => {
     admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been marked as completed by the employee.`));
   }).catch(() => {});
 
-  return order.populate(POPULATE_ORDER);
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
 };
 
 /**
@@ -422,7 +473,9 @@ const addMessage = async (orderId, senderId, senderRole, text, attachments = [])
     pushNotification(order.assignedEmployee, order._id, orderNum, 'message', 'New Message from Client', body);
   }
 
-  return order.populate(POPULATE_ORDER);
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
 };
 
 /**
@@ -452,7 +505,7 @@ const getEmployeeOrders = async ({ employeeId, page = 1, limit = 20, status }) =
 /**
  * Add an internal update (admin ↔ employee only)
  */
-const addUpdate = async (orderId, senderId, senderRole, text, attachments = []) => {
+const addUpdate = async (orderId, senderId, senderRole, text, attachments = [], mentions = []) => {
   if (senderRole === 'client') {
     const err = new Error('Clients cannot post updates');
     err.statusCode = 403;
@@ -472,27 +525,72 @@ const addUpdate = async (orderId, senderId, senderRole, text, attachments = []) 
     throw err;
   }
 
-  order.updates.push({ sender: senderId, senderRole, text, attachments });
+  // Only allow mentioning real participants (admins + assigned employee), never self.
+  const participants = await getOrderParticipants(order);
+  const allowedIds = new Set(participants.map((p) => p._id.toString()));
+  const mentionIds = [...new Set((mentions || []).map(String))].filter(
+    (id) => allowedIds.has(id) && id !== senderId.toString(),
+  );
+
+  order.updates.push({ sender: senderId, senderRole, text, attachments, mentions: mentionIds });
   await order.save();
 
-  // Notify the other party
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+
+  // Notify mentioned participants directly.
+  if (mentionIds.length) {
+    const sender = await User.findById(senderId).select('name');
+    const senderName = sender?.name || (senderRole === 'admin' ? 'An admin' : 'An employee');
+    const mentionBody = text
+      ? `${senderName} mentioned you in an update on order ${orderNum}: "${text.slice(0, 80)}"`
+      : `${senderName} mentioned you in an update on order ${orderNum}.`;
+    mentionIds.forEach((uid) => pushNotification(uid, order._id, orderNum, 'message', 'You were mentioned', mentionBody));
+  }
+  const mentionedSet = new Set(mentionIds);
+
+  // Notify the other party (skip anyone already notified via a mention).
   if (senderRole === 'employee' && order.assignedEmployee) {
     const body = text
       ? `Employee posted an update on order ${orderNum}: "${text.slice(0, 80)}"`
       : `Employee shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
     // employee → notify all admins
     User.find({ role: 'admin' }).select('_id').then((admins) => {
-      admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'message', 'New Update from Employee', body));
+      admins
+        .filter((a) => !mentionedSet.has(a._id.toString()))
+        .forEach((a) => pushNotification(a._id, order._id, orderNum, 'message', 'New Update from Employee', body));
     }).catch(() => {});
-  } else if (senderRole === 'admin' && order.assignedEmployee) {
+  } else if (senderRole === 'admin' && order.assignedEmployee && !mentionedSet.has(order.assignedEmployee.toString())) {
     const body = text
       ? `Admin posted an update on order ${orderNum}: "${text.slice(0, 80)}"`
       : `Admin shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
     pushNotification(order.assignedEmployee, order._id, orderNum, 'message', 'New Update from Admin', body);
   }
 
-  return order.populate(POPULATE_ORDER);
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
+};
+
+/**
+ * List the staff a requester can @mention on an order's updates:
+ * order participants (admins + assigned employee), excluding the requester.
+ */
+const listMentionableParticipants = async (orderId, requesterId, requesterRole) => {
+  const order = await Order.findById(orderId);
+  if (!order) {
+    const err = new Error('Order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (requesterRole === 'employee' && (!order.assignedEmployee || order.assignedEmployee.toString() !== requesterId.toString())) {
+    const err = new Error('You are not assigned to this order');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const participants = await getOrderParticipants(order);
+  return participants.filter((p) => p._id.toString() !== requesterId.toString());
 };
 
 /**
@@ -521,7 +619,9 @@ const adminSetDeliveryDate = async (orderId, deliveryDate) => {
     pushNotification(order.assignedEmployee, order._id, orderNum, 'status', 'Delivery Date Updated', 'Admin has updated the delivery date for this order');
   }
 
-  return order.populate(POPULATE_ORDER);
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
 };
 
 /**
@@ -555,7 +655,9 @@ const adminResetOrderStatus = async (orderId) => {
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
   pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Status Updated', `Your order status has been updated`);
 
-  return order.populate(POPULATE_ORDER);
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
 };
 
 module.exports = {
@@ -569,6 +671,7 @@ module.exports = {
   completeOrder,
   addMessage,
   addUpdate,
+  listMentionableParticipants,
   getEmployeeOrders,
   adminSetDeliveryDate,
   adminResetOrderStatus,

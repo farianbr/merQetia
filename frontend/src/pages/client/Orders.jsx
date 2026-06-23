@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getOrders, sendMessage } from '../../api/orders';
+import { useSocket } from '../../context/SocketContext';
 import { Link, useLocation } from 'react-router-dom';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
@@ -54,6 +55,7 @@ export default function ClientOrders() {
   const chatBottomRef = useRef(null);
   const activeOrderRef = useRef(null);
   const fileInputRef = useRef(null);
+  const socket = useSocket();
   activeOrderRef.current = activeOrder;
 
   const fetchOrders = async (selectId) => {
@@ -74,6 +76,28 @@ export default function ClientOrders() {
   useEffect(() => {
     fetchOrders(newOrderId || selectOrderId);
   }, [newOrderId, selectOrderId]);
+
+  // Live order updates (status changes, new messages) — patch state in place
+  useEffect(() => {
+    if (!socket) return;
+    const upsert = ({ order }) => {
+      if (!order?._id) return;
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o._id === order._id);
+        if (idx === -1) return [order, ...prev];
+        const next = [...prev];
+        next[idx] = order;
+        return next;
+      });
+      setActiveOrder((cur) => (cur && cur._id === order._id ? order : cur));
+    };
+    socket.on('order:updated', upsert);
+    socket.on('order:created', upsert);
+    return () => {
+      socket.off('order:updated', upsert);
+      socket.off('order:created', upsert);
+    };
+  }, [socket]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });

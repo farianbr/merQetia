@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ClientLayout from './components/ClientLayout';
 import AdminLayout from './components/AdminLayout';
@@ -103,9 +104,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <SocketProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </SocketProvider>
     </AuthProvider>
   );
 }

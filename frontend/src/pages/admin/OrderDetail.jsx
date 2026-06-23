@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getOrder, assignEmployee, adminSetDeliveryDate, adminResetStatus } from '../../api/orders';
 import { getEmployees } from '../../api/admin';
+import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import {
@@ -137,6 +138,7 @@ export default function AdminOrderDetail() {
   const [statusError, setStatusError] = useState('');
 
   const chatBottomRef = useRef(null);
+  const socket = useSocket();
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -151,6 +153,16 @@ export default function AdminOrderDetail() {
 
   useEffect(() => { fetchOrder(); }, [fetchOrder]);
   useEffect(() => { getEmployees().then((r) => setEmployees(r.data.employees || [])); }, []);
+
+  // Live updates for this order (status, assignment, new messages)
+  useEffect(() => {
+    if (!socket) return;
+    const onUpdate = ({ order: updated }) => {
+      if (updated?._id === id) setOrder(updated);
+    };
+    socket.on('order:updated', onUpdate);
+    return () => socket.off('order:updated', onUpdate);
+  }, [socket, id]);
 
   const handleAssign = async () => {
     if (!selectedEmployee) return;

@@ -25,12 +25,16 @@ export const sendMessage = (id, text, files = []) => {
   });
 };
 
-export const sendUpdate = (id, text, files = []) => {
+export const getOrderParticipants = (id) =>
+  api.get(`/orders/${id}/participants`);
+
+export const sendUpdate = (id, text, files = [], mentions = []) => {
   if (files.length === 0) {
-    return api.post(`/orders/${id}/updates`, { text });
+    return api.post(`/orders/${id}/updates`, { text, mentions });
   }
   const fd = new FormData();
   if (text) fd.append('text', text);
+  fd.append('mentions', JSON.stringify(mentions));
   files.forEach((f) => fd.append('files', f));
   return api.post(`/orders/${id}/updates`, fd, {
     headers: { 'Content-Type': 'multipart/form-data' },

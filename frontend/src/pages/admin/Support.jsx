@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   getSupportRequests, updateSupportStatus, replySupportRequest,
 } from '../../api/support';
+import { useSocket } from '../../context/SocketContext';
 import {
   LuMessageSquare, LuCalendarDays, LuMail, LuClock, LuCircleCheck,
   LuSendHorizontal, LuRotateCcw, LuLifeBuoy,
@@ -34,6 +35,7 @@ export default function AdminSupport() {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [actionErr, setActionErr] = useState('');
+  const socket = useSocket();
 
   const load = async () => {
     setLoading(true);
@@ -48,6 +50,27 @@ export default function AdminSupport() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Live support updates — new requests appear, status/replies sync across staff
+  useEffect(() => {
+    if (!socket) return;
+    const onNew = ({ request }) => {
+      if (!request?._id) return;
+      setRequests((prev) =>
+        prev.some((r) => r._id === request._id) ? prev : [request, ...prev]
+      );
+    };
+    const onUpdated = ({ request }) => {
+      if (!request?._id) return;
+      setRequests((prev) => prev.map((r) => (r._id === request._id ? request : r)));
+    };
+    socket.on('support:new', onNew);
+    socket.on('support:updated', onUpdated);
+    return () => {
+      socket.off('support:new', onNew);
+      socket.off('support:updated', onUpdated);
+    };
+  }, [socket]);
 
   const filtered = useMemo(() => {
     switch (filter) {

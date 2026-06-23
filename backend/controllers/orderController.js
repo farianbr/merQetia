@@ -9,6 +9,7 @@ const {
   completeOrder,
   addMessage,
   addUpdate,
+  listMentionableParticipants,
   getEmployeeOrders,
   adminSetDeliveryDate,
   adminResetOrderStatus,
@@ -225,8 +226,28 @@ const postUpdate = async (req, res, next) => {
       size: f.size,
     }));
 
-    const order = await addUpdate(req.params.id, req.user.id, req.user.role, text, attachments);
+    // mentions arrive as an array (JSON body) or a JSON string (multipart form)
+    let mentions = req.body.mentions;
+    if (typeof mentions === 'string') {
+      try { mentions = JSON.parse(mentions); } catch { mentions = []; }
+    }
+    if (!Array.isArray(mentions)) mentions = [];
+
+    const order = await addUpdate(req.params.id, req.user.id, req.user.role, text, attachments, mentions);
     res.status(201).json({ success: true, updates: order.updates });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/orders/:id/participants
+ * Admin or assigned employee — list staff that can be @mentioned on this order
+ */
+const getParticipants = async (req, res, next) => {
+  try {
+    const participants = await listMentionableParticipants(req.params.id, req.user.id, req.user.role);
+    res.status(200).json({ success: true, participants });
   } catch (err) {
     next(err);
   }
@@ -262,5 +283,5 @@ const resetStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate, setDeliveryDate, resetStatus };
+module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, complete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus };
 

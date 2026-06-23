@@ -4,7 +4,9 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
+const http = require('node:http');
 const connectDB = require('./config/db');
+const { initSocket } = require('./socket');
 
 // -- Override default DNS servers to avoid potential resolution issues in certain environments
 const dns = require('node:dns');
@@ -128,6 +130,11 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+// -- Real-time layer (Socket.IO) shares the HTTP server
+initSocket(server, allowedOrigins);
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

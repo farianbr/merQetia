@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getMyAssignments, acceptOrder, rejectOrder, completeOrder, sendMessage } from '../../api/orders';
+import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import { LuClipboard, LuFile, LuPaperclip, LuImage, LuDownload } from 'react-icons/lu';
@@ -48,6 +49,7 @@ export default function EmployeeOrders() {
   const [error, setError] = useState('');
   const activeOrderRef = useRef(null);
   activeOrderRef.current = activeOrder;
+  const socket = useSocket();
 
   // Chat
   const [msgText, setMsgText] = useState('');
@@ -85,6 +87,24 @@ export default function EmployeeOrders() {
   }, []);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  // Live order updates (new assignments, status changes, new messages)
+  useEffect(() => {
+    if (!socket) return;
+    const upsert = ({ order }) => {
+      if (!order?._id) return;
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o._id === order._id);
+        if (idx === -1) return [order, ...prev];
+        const next = [...prev];
+        next[idx] = order;
+        return next;
+      });
+      setActiveOrder((cur) => (cur && cur._id === order._id ? order : cur));
+    };
+    socket.on('order:updated', upsert);
+    return () => socket.off('order:updated', upsert);
+  }, [socket]);
 
   // Capture orderId from navigation state — fires every time location.key changes
   // (location.key is unique per navigation, so re-navigating to same orderId re-triggers)

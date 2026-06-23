@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getOrders } from '../../api/orders';
+import { useSocket } from '../../context/SocketContext';
 import OrderTimeline from '../../components/OrderTimeline';
 import { LuX } from 'react-icons/lu';
 
@@ -147,6 +148,7 @@ export default function ClientDashboard() {
   const [activeOrder, setActiveOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const socket = useSocket();
 
   useEffect(() => {
     getOrders()
@@ -160,6 +162,33 @@ export default function ClientDashboard() {
       .catch(() => setError('Failed to load orders'))
       .finally(() => setLoading(false));
   }, []);
+
+  // Live: keep the active-orders list and the open detail in sync
+  useEffect(() => {
+    if (!socket) return;
+    const handle = ({ order }) => {
+      if (!order?._id) return;
+      const isActive = ACTIVE_STATUSES.has(order.status);
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o._id === order._id);
+        if (!isActive) return idx === -1 ? prev : prev.filter((o) => o._id !== order._id);
+        if (idx === -1) return [order, ...prev];
+        const next = [...prev];
+        next[idx] = order;
+        return next;
+      });
+      setActiveOrder((cur) => {
+        if (cur?._id !== order._id) return cur;
+        return isActive ? order : null;
+      });
+    };
+    socket.on('order:updated', handle);
+    socket.on('order:created', handle);
+    return () => {
+      socket.off('order:updated', handle);
+      socket.off('order:created', handle);
+    };
+  }, [socket]);
 
   if (loading) return <div className="loading">Loading workspace…</div>;
   if (error)   return <div className="page-error">{error}</div>;

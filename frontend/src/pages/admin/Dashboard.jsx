@@ -5,11 +5,15 @@ import {
   assignEmployee as assignEmployeeApi,
   getOrders,
   sendUpdate,
+  getOrderParticipants,
 } from "../../api/orders";
 import { saveDashboardPrefs } from "../../api/auth";
 import { useAuth } from "../../context/AuthContext";
+import { useSocket } from "../../context/SocketContext";
 import ChatAttachments from "../../components/ChatAttachments";
 import ImageLightbox from "../../components/ImageLightbox";
+import MentionInput from "../../components/MentionInput";
+import { highlightMentions, extractMentionIds } from "../../utils/mentions";
 import {
   LuChevronDown,
   LuFile,
@@ -269,6 +273,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [attachFiles, setAttachFiles] = useState([]);
+  const [participants, setParticipants] = useState([]);
   const [lightbox, setLightbox] = useState(null);
   const [timeTip, setTimeTip] = useState(null);
   const timeTipTimer = useRef(null);
@@ -286,12 +291,21 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
   const canMessage =
     order.status === "accepted" || order.status === "completed";
 
+  // Load mentionable participants (assigned employee + other admins) when the panel opens.
+  useEffect(() => {
+    if (!canMessage) return;
+    getOrderParticipants(order._id)
+      .then((r) => setParticipants(r.data.participants || []))
+      .catch(() => setParticipants([]));
+  }, [order._id, canMessage]);
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!text.trim() && attachFiles.length === 0) return;
     setSending(true);
     try {
-      const r = await sendUpdate(order._id, text.trim(), attachFiles);
+      const mentions = extractMentionIds(text, participants);
+      const r = await sendUpdate(order._id, text.trim(), attachFiles, mentions);
       setText("");
       setAttachFiles([]);
       onMessagesUpdate(order._id, r.data.updates);
@@ -420,7 +434,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
                       </div>
                     </div>
                     <div className="mq-msg-body">
-                      {msg.text && <p className="mq-msg-text">{msg.text}</p>}
+                      {msg.text && <p className="mq-msg-text">{highlightMentions(msg.text, msg.mentions)}</p>}
                       <ChatAttachments
                         attachments={msg.attachments}
                         onImageClick={(src, name) => setLightbox({ src, name })}
@@ -465,12 +479,12 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
               </div>
             )}
             <div className="mq-panel-input-row">
-              <input
-                type="text"
+              <MentionInput
                 className="field mq-panel-input-text"
-                placeholder="Write an update…"
+                placeholder="Write an update… (@ to mention)"
                 value={text}
-                onChange={(e) => setText(e.target.value)}
+                onChange={setText}
+                participants={participants}
                 disabled={sending}
               />
               <input
@@ -934,6 +948,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const socket = useSocket();
   const [orders, setOrders] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [panelOrder, setPanelOrder] = useState(null);
@@ -1108,6 +1123,28 @@ export default function AdminDashboard() {
       .then((r) => setEmployees(r.data.employees || []))
       .catch(() => {});
   }, []);
+
+  // Live: new orders, status/assignment changes, and new updates in the panel
+  useEffect(() => {
+    if (!socket) return;
+    const upsert = ({ order }) => {
+      if (!order?._id) return;
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o._id === order._id);
+        if (idx === -1) return [order, ...prev];
+        const next = [...prev];
+        next[idx] = order;
+        return next;
+      });
+      setPanelOrder((prev) => (prev?._id === order._id ? order : prev));
+    };
+    socket.on("order:updated", upsert);
+    socket.on("order:created", upsert);
+    return () => {
+      socket.off("order:updated", upsert);
+      socket.off("order:created", upsert);
+    };
+  }, [socket]);
 
   const handleUpdateClick = (order) => {
     setPanelOrder((prev) => (prev?._id === order._id ? null : order));

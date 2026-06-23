@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LuLayoutGrid, LuTrendingUp, LuCircleCheck, LuEye } from 'react-icons/lu';
 import { getOrders } from '../../api/orders';
+import { useSocket } from '../../context/SocketContext';
 
 const STATUS_CONFIG = {
   placed:    { label: 'Pending',     color: '#6b7280', bg: '#f3f4f6' },
@@ -82,6 +83,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
+  const socket = useSocket();
 
   useEffect(() => {
     getOrders()
@@ -89,6 +91,27 @@ export default function AdminOrders() {
       .catch(() => setError('Failed to load orders'))
       .finally(() => setLoading(false));
   }, []);
+
+  // Live order updates — new orders, status changes, assignments
+  useEffect(() => {
+    if (!socket) return;
+    const upsert = ({ order }) => {
+      if (!order?._id) return;
+      setOrders((prev) => {
+        const idx = prev.findIndex((o) => o._id === order._id);
+        if (idx === -1) return [order, ...prev];
+        const next = [...prev];
+        next[idx] = order;
+        return next;
+      });
+    };
+    socket.on('order:updated', upsert);
+    socket.on('order:created', upsert);
+    return () => {
+      socket.off('order:updated', upsert);
+      socket.off('order:created', upsert);
+    };
+  }, [socket]);
 
   const now = new Date();
   const stats = useMemo(() => {
