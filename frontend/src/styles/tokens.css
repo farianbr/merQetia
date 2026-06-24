@@ -1,28 +1,80 @@
 /* ════════════════════════════════════════════════════════════
-   DESIGN TOKENS — colors, radius, shadow, and shared breakpoints
+   DESIGN TOKENS — merQetia brand system
+   Palette, typography, radius, shadow and shared breakpoints.
+   Sourced from the merQetia brand guideline (Colours / Typography).
    ════════════════════════════════════════════════════════════ */
 
 :root {
-  --primary: #0e7490;
-  --primary-hover: #155e75;
+  /* ── Brand palette (guideline swatches) ───────────────────── */
+  --navy: #08303d;          /* deep teal-navy — dark surfaces, ink */
+  --navy-lift: #0c3a46;     /* slightly lifted navy — headers/footers */
+  --cyan: #33a8d1;          /* Pacific Cyan — brand accent anchor */
+  --green: #84de89;         /* Light Green */
+  --vanilla: #f1dd9e;       /* Vanilla */
+  --lavender: #c9a3d4;      /* Lavender */
+  --off-white: #f1f1f0;     /* Off White — page background */
+
+  /* ── Pacific Cyan ramp (derived for accessible UI) ────────── */
+  --cyan-50:  #eef8fc;
+  --cyan-100: #d8eef7;
+  --cyan-200: #b3ddee;
+  --cyan-300: #7fc6e0;
+  --cyan-400: #4fb4d8;
+  --cyan-500: #33a8d1;      /* = --cyan */
+  --cyan-600: #1f8cb4;      /* primary — passes white-text contrast */
+  --cyan-700: #176f90;      /* primary hover */
+  --cyan-800: #155e75;      /* deep cyan ink */
+
+  /* ── Semantic ─────────────────────────────────────────────── */
+  --primary: var(--cyan-600);
+  --primary-hover: var(--cyan-700);
+  --primary-ink: var(--cyan-800);   /* dark cyan text on light */
+  --primary-soft: var(--cyan-100);  /* tinted fills / active rows */
+  --primary-softer: var(--cyan-50); /* faint hover tints */
+  --primary-border: var(--cyan-200);/* cyan hairlines / chip borders */
+
   --danger: #ef4444;
   --secondary: #6b7280;
-  --bg: #f9fafb;
+
+  --bg: var(--off-white);
   --card-bg: #ffffff;
-  --text: #111827;
-  --text-muted: #6b7280;
-  --border: #e5e7eb;
-  --radius: 8px;
-  --shadow: 0 1px 3px rgba(0,0,0,.1);
+  --text: #0f2b35;          /* navy-tinted ink, softer than pure black */
+  --text-muted: #5a6c73;
+  --border: #e4e6e3;        /* warm hairline that sits on off-white */
+
+  /* ── Radius — rounder, Apple-premium ──────────────────────── */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  /* ── Shadow — soft, navy-tinted, layered ──────────────────── */
+  --shadow: 0 1px 2px rgba(8,48,61,.06), 0 1px 3px rgba(8,48,61,.05);
+  --shadow-md: 0 6px 20px rgba(8,48,61,.08), 0 2px 6px rgba(8,48,61,.05);
+  --shadow-lg: 0 18px 48px rgba(8,48,61,.14);
+
+  /* ── Typography ───────────────────────────────────────────── */
+  --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Space Grotesk', ui-monospace, 'SF Mono', monospace;
 }
 
 [data-theme="dark"] {
-  --bg: #0d1117;
-  --card-bg: #161b27;
-  --text: #e2e8f0;
-  --text-muted: #8b9abf;
-  --border: #2a3248;
+  --bg: #061f29;            /* deep navy page */
+  --card-bg: #0c3441;       /* navy card surface */
+  --text: #e6f0f3;
+  --text-muted: #8fb0b9;
+  --border: #1a4250;
   --shadow: 0 1px 4px rgba(0,0,0,.5);
+  --shadow-md: 0 8px 24px rgba(0,0,0,.5);
+  --shadow-lg: 0 18px 48px rgba(0,0,0,.6);
+
+  --primary: var(--cyan-500);
+  --primary-hover: var(--cyan-400);
+  --primary-ink: var(--cyan-300);
+  --primary-soft: rgba(51,168,209,.16);
+  --primary-softer: rgba(51,168,209,.10);
+  --primary-border: rgba(51,168,209,.32);
 }
 
 /* ── Standard responsive breakpoints ──────────────────────────

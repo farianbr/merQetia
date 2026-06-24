@@ -70,7 +70,7 @@ export default function AdminExpenses() {
       {error && <p className="error-msg">{error}</p>}
 
       <div className="stat-card" style={{ marginBottom: '1.5rem', maxWidth: 200 }}>
-        <span className="stat-count">${total.toFixed(2)}</span>
+        <span className="stat-count">€{total.toFixed(2)}</span>
         <span className="stat-label">Total Expenses</span>
       </div>
 
@@ -86,7 +86,7 @@ export default function AdminExpenses() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Amount ($)</label>
+                  <label>Amount (€)</label>
                   <input type="number" step="0.01" {...register('amount', { required: true, min: 0 })} />
                   {errors.amount && <span className="field-error">Required</span>}
                 </div>
@@ -132,7 +132,7 @@ export default function AdminExpenses() {
             <tr key={e._id}>
               <td>{e.title}</td>
               <td>{e.type}</td>
-              <td>${e.amount?.toFixed(2)}</td>
+              <td>€{e.amount?.toFixed(2)}</td>
               <td>{e.date ? new Date(e.date).toLocaleDateString() : '—'}</td>
               <td>
                 <button className="btn-sm btn-secondary" onClick={() => openEdit(e)}>Edit</button>

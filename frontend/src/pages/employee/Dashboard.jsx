@@ -15,7 +15,7 @@ import {
 
 const STATUS_CONFIG = {
   assigned:  { label: 'New Request', color: '#3b82f6' },
-  accepted:  { label: 'In Progress', color: '#06b6d4' },
+  accepted:  { label: 'In Progress', color: '#33a8d1' },
   review:    { label: 'In Review',   color: '#8b5cf6' },
   overdue:   { label: 'Overdue',     color: '#ef4444' },
   rejected:  { label: 'Declined',    color: '#ef4444' },
@@ -210,7 +210,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
                 const isMine = msg.senderRole === 'employee';
                 const senderName = msg.sender?.name || (isMine ? 'You' : '—');
                 const initials = senderName.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'Y';
-                const avatarBg = msg.senderRole === 'admin' ? '#0e7490' : '#0e7490';
+                const avatarBg = msg.senderRole === 'admin' ? '#1f8cb4' : '#1f8cb4';
                 return (
                   <div key={msg._id} className="mq-msg">
                     <div className="mq-msg-header">

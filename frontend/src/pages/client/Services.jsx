@@ -73,7 +73,7 @@ export default function ClientServices() {
               )}
             </div>
             <div className="csc-footer">
-              <span className="csc-price">${s.price?.toFixed(2)}</span>
+              <span className="csc-price">€{s.price?.toFixed(2)}</span>
               <button className="csc-cta" onClick={() => openOrder(s)}>Order Now</button>
             </div>
           </div>
@@ -86,7 +86,7 @@ export default function ClientServices() {
             <div className="csc-modal-header">
               <div>
                 <h2>{ordering.name}</h2>
-                <p className="csc-modal-price">${ordering.price?.toFixed(2)}</p>
+                <p className="csc-modal-price">€{ordering.price?.toFixed(2)}</p>
               </div>
               <button type="button" className="svc-modal-close" onClick={closeOrder}>✕</button>
             </div>
@@ -120,7 +120,7 @@ export default function ClientServices() {
                 onClick={handleSubmitOrder}
                 disabled={!allAnswered || submitting}
               >
-                {submitting ? 'Placing order…' : `Confirm Order — $${ordering.price?.toFixed(2)}`}
+                {submitting ? 'Placing order…' : `Confirm Order — €${ordering.price?.toFixed(2)}`}
               </button>
             </div>
           </div>

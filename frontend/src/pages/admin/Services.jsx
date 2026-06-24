@@ -4,7 +4,7 @@ import { getServices, createService, updateService, deleteService } from '../../
 import { LuInfo } from 'react-icons/lu';
 
 const DEPT_COLORS = {
-  Creative: { bg: '#cffafe', text: '#155e75' },
+  Creative: { bg: '#d8eef7', text: '#155e75' },
   Strategy: { bg: '#dbeafe', text: '#1d4ed8' },
   'Media Buying': { bg: '#dcfce7', text: '#15803d' },
 };
@@ -131,12 +131,12 @@ export default function AdminServices() {
                 <div className="svc-card-pricing">
                   <div className="svc-price-item">
                     <span className="svc-price-label">Client Price</span>
-                    <span className="svc-price-value">${s.price?.toFixed(2)}</span>
+                    <span className="svc-price-value">€{s.price?.toFixed(2)}</span>
                   </div>
                   <div className="svc-price-divider" />
                   <div className="svc-price-item">
                     <span className="svc-price-label">Internal Cost</span>
-                    <span className="svc-price-value svc-price-value--cost">${s.internalCost?.toFixed(2)}</span>
+                    <span className="svc-price-value svc-price-value--cost">€{s.internalCost?.toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -204,7 +204,7 @@ export default function AdminServices() {
               {/* Price + Internal Cost */}
               <div className="form-row">
                 <div className="form-group">
-                  <label>Client Price ($)</label>
+                  <label>Client Price (€)</label>
                   <input
                     type="number"
                     step="0.01"
@@ -215,7 +215,7 @@ export default function AdminServices() {
                   {errors.price && <span className="field-error">{errors.price.message}</span>}
                 </div>
                 <div className="form-group">
-                  <label>Internal Cost ($)</label>
+                  <label>Internal Cost (€)</label>
                   <input
                     type="number"
                     step="0.01"

@@ -3,7 +3,7 @@ import { getInvoices, downloadPDF } from '../../api/invoices';
 import PaymentModal from '../../components/PaymentModal';
 import { LuDownload, LuCreditCard, LuReceipt } from 'react-icons/lu';
 
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const eur = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
 
 const TYPE_LABEL = { full: 'Full', advance: 'Advance', partial: 'Partial' };
 
@@ -72,13 +72,13 @@ export default function ClientInvoices() {
       <div className="card inv-summary-bar">
         <div className="inv-summary-item">
           <span className="inv-summary-label">Paid</span>
-          <span className="inv-summary-val inv-summary-val--paid">{usd.format(totalPaid)}</span>
+          <span className="inv-summary-val inv-summary-val--paid">{eur.format(totalPaid)}</span>
         </div>
         <div className="inv-summary-sep" />
         <div className="inv-summary-item">
           <span className="inv-summary-label">Outstanding</span>
           <span className={`inv-summary-val ${totalOutstanding > 0 ? 'inv-summary-val--unpaid' : ''}`}>
-            {usd.format(totalOutstanding)}
+            {eur.format(totalOutstanding)}
           </span>
         </div>
         <div className="inv-summary-sep" />
@@ -124,7 +124,7 @@ export default function ClientInvoices() {
                 </div>
 
                 <div className="inv-card-right">
-                  <span className="inv-card-amount">{usd.format(inv.amount)}</span>
+                  <span className="inv-card-amount">{eur.format(inv.amount)}</span>
                   <span className={`badge ${isPaid ? 'badge-green' : 'badge-yellow'}`}>
                     {isPaid ? 'Paid' : 'Unpaid'}
                   </span>

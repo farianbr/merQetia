@@ -60,10 +60,10 @@ function ClientLayoutInner({ children }) {
   const [bellOpen, setBellOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [navOpen, setNavOpen] = useState(false);
+  const [navOpenPath, setNavOpenPath] = useState(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
 
-  useEffect(() => { setNavOpen(false); }, [location.pathname]);
+  const navOpen = navOpenPath === location.pathname;
 
   const bellRef = useRef(null);
   const profileRef = useRef(null);
@@ -122,7 +122,7 @@ function ClientLayoutInner({ children }) {
   return (
     <div className="cl-shell">
       {/* Mobile drawer overlay */}
-      {navOpen && <div className="cl-nav-overlay" onClick={() => setNavOpen(false)} />}
+      {navOpen && <div className="cl-nav-overlay" onClick={() => setNavOpenPath(null)} />}
 
       {/* ── Sidebar ── */}
       <aside className={`cl-sidebar ${navOpen ? 'cl-sidebar--open' : ''}`}>
@@ -166,7 +166,7 @@ function ClientLayoutInner({ children }) {
         <header className="cl-topbar">
           {/* Left: back/forward + search + dark mode */}
           <div className="cl-topbar-left">
-            <button className="cl-icon-btn cl-hamburger" aria-label="Open menu" onClick={() => setNavOpen(true)} title="Menu">
+            <button className="cl-icon-btn cl-hamburger" aria-label="Open menu" onClick={() => setNavOpenPath(location.pathname)} title="Menu">
               <LuMenu size={18} />
             </button>
             <button

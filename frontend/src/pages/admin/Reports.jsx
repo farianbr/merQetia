@@ -14,7 +14,7 @@ import { getReportSummary, getOrderStats, getTopServices } from '../../api/admin
 const STATUS_CONFIG = {
   placed: { label: 'Not Started', color: '#9ca3af' },
   assigned: { label: 'Assigned', color: '#3b82f6' },
-  accepted: { label: 'In Progress', color: '#06b6d4' },
+  accepted: { label: 'In Progress', color: '#33a8d1' },
   review: { label: 'In Review', color: '#8b5cf6' },
   rejected: { label: 'Rejected', color: '#ef4444' },
   completed: { label: 'Completed', color: '#10b981' },
@@ -53,8 +53,8 @@ const presetRange = (key) => {
   }
 };
 
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-const fmtMoney = (v) => usd.format(v ?? 0);
+const eur = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
+const fmtMoney = (v) => eur.format(v ?? 0);
 
 const fmtDate = (s) =>
   new Date(`${s}T00:00:00`).toLocaleDateString('en-US', {
@@ -246,8 +246,8 @@ export default function AdminReports() {
             />
             <KpiCard
               icon={<LuPercent size={19} />}
-              iconBg="#cffafe"
-              iconColor="#0e7490"
+              iconBg="#d8eef7"
+              iconColor="#1f8cb4"
               label="Profit Margin"
               value={summary?.profitMargin ?? '0%'}
               sub="Of total revenue"
@@ -274,7 +274,7 @@ export default function AdminReports() {
                   {expInternal > 0 && (
                     <div
                       className="rp-bar-seg"
-                      style={{ flex: expInternal, background: '#0891b2' }}
+                      style={{ flex: expInternal, background: '#1f8cb4' }}
                     />
                   )}
                 </div>
@@ -288,7 +288,7 @@ export default function AdminReports() {
                     </span>
                   </div>
                   <div className="rp-legend-row">
-                    <span className="rp-dot" style={{ background: '#0891b2' }} />
+                    <span className="rp-dot" style={{ background: '#1f8cb4' }} />
                     <span className="rp-legend-label">
                       Internal costs (completed orders)
                     </span>

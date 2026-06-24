@@ -3,7 +3,7 @@ import { getInvoices, markAsPaid, voidInvoice, createInvoice, downloadPDF } from
 import { getOrders } from '../../api/orders';
 import { LuDownload, LuPlus, LuTrash2, LuCheck, LuSearch } from 'react-icons/lu';
 
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const eur = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
 const TYPE_LABEL = { full: 'Full', advance: 'Advance', partial: 'Partial' };
 
 const fmtDate = (iso) =>
@@ -36,7 +36,7 @@ function CreateInvoiceModal({ onClose, onCreated }) {
     if (!form.orderId) { setError('Select an order'); return; }
     if (!form.amount || parseFloat(form.amount) <= 0) { setError('Enter a valid amount'); return; }
     if (maxAmount && parseFloat(form.amount) > maxAmount) {
-      setError(`Amount cannot exceed order total (${usd.format(maxAmount)})`);
+      setError(`Amount cannot exceed order total (${eur.format(maxAmount)})`);
       return;
     }
     setError('');
@@ -94,7 +94,7 @@ function CreateInvoiceModal({ onClose, onCreated }) {
             )}
             {selectedOrder && (
               <span style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: '.25rem' }}>
-                Order total: {usd.format(selectedOrder.totalPrice)}
+                Order total: {eur.format(selectedOrder.totalPrice)}
               </span>
             )}
           </div>
@@ -114,7 +114,7 @@ function CreateInvoiceModal({ onClose, onCreated }) {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Amount ($)</label>
+            <label className="form-label">Amount (€)</label>
             <input
               type="number"
               className="field rp-date-input"
@@ -277,7 +277,7 @@ export default function AdminInvoices() {
       {/* Outstanding banner */}
       {totalOutstanding > 0 && (
         <div className="inv-outstanding-banner">
-          <strong>{usd.format(totalOutstanding)}</strong> outstanding across{' '}
+          <strong>{eur.format(totalOutstanding)}</strong> outstanding across{' '}
           {counts.unpaid} unpaid invoice{counts.unpaid !== 1 ? 's' : ''}
         </div>
       )}
@@ -355,7 +355,7 @@ export default function AdminInvoices() {
                   <td>
                     <span className="inv-type-tag">{TYPE_LABEL[inv.type] || inv.type}</span>
                   </td>
-                  <td style={{ fontWeight: 700 }}>{usd.format(inv.amount)}</td>
+                  <td style={{ fontWeight: 700 }}>{eur.format(inv.amount)}</td>
                   <td>
                     <span className={`badge ${isPaid ? 'badge-green' : 'badge-yellow'}`}>
                       {isPaid ? 'Paid' : 'Unpaid'}
@@ -426,7 +426,7 @@ export default function AdminInvoices() {
               <button className="pm-close-btn" onClick={() => setPayTarget(null)} disabled={!!actionLoading} aria-label="Close">✕</button>
             </div>
             <p style={{ fontSize: '.9rem', color: 'var(--text)', margin: '0 0 .5rem' }}>
-              Confirm payment of <strong>{usd.format(payTarget.amount)}</strong> for invoice{' '}
+              Confirm payment of <strong>{eur.format(payTarget.amount)}</strong> for invoice{' '}
               <strong>{payTarget.invoiceNumber}</strong>
               {payTarget.orderId?.clientId?.name ? <> from <strong>{payTarget.orderId.clientId.name}</strong></> : null}.
             </p>

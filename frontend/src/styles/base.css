@@ -5,7 +5,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 input, textarea, select, button { font-family: inherit; font-size: inherit; }
 
-body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; }
+body { font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 15px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+/* Display typeface (Space Grotesk) for headings and titles. */
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); letter-spacing: -.01em; }
 
 /* Page shell */
 .page { display: flex; flex-direction: column; gap: 1.5rem; }

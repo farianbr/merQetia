@@ -20,7 +20,7 @@ function fmtTime(iso) {
 const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
-  accepted: '#06b6d4',
+  accepted: '#33a8d1',
   review: '#8b5cf6',
   overdue: '#dc2626',
   rejected: '#ef4444',
@@ -255,7 +255,7 @@ export default function ClientOrders() {
                 </div>
                 <div className="co-meta-item">
                   <span className="co-meta-label">Total</span>
-                  <span className="co-meta-value co-meta-price">${activeOrder.totalPrice?.toFixed(2)}</span>
+                  <span className="co-meta-value co-meta-price">€{activeOrder.totalPrice?.toFixed(2)}</span>
                 </div>
                 <div className="co-meta-item">
                   <span className="co-meta-label">Employee</span>

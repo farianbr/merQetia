@@ -11,7 +11,7 @@ const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://lo
 
 const STATUS_CONFIG = {
   assigned: { label: 'Assigned', bg: '#dbeafe', color: '#1d4ed8' },
-  accepted: { label: 'In Progress', bg: '#cffafe', color: '#155e75' },
+  accepted: { label: 'In Progress', bg: '#d8eef7', color: '#155e75' },
   review: { label: 'In Review', bg: '#ede9fe', color: '#5b21b6' },
   overdue: { label: 'Overdue', bg: '#fee2e2', color: '#b91c1c' },
   rejected: { label: 'Rejected', bg: '#fee2e2', color: '#b91c1c' },
@@ -20,7 +20,7 @@ const STATUS_CONFIG = {
 
 const DEPT_COLORS = {
   Creative: { bg: '#fef3c7', color: '#b45309' },
-  Strategy: { bg: '#cffafe', color: '#155e75' },
+  Strategy: { bg: '#d8eef7', color: '#155e75' },
   'Media Buying': { bg: '#d1fae5', color: '#065f46' },
 };
 
@@ -78,7 +78,7 @@ export default function EmployeeProfile() {
             {departments.length > 0 && (
               <div className="pf-dept-tags" style={{ justifyContent: 'center' }}>
                 {departments.map((dept) => {
-                  const dc = DEPT_COLORS[dept] || { bg: '#cffafe', color: '#155e75' };
+                  const dc = DEPT_COLORS[dept] || { bg: '#d8eef7', color: '#155e75' };
                   return (
                     <span key={dept} className="pf-dept-tag" style={{ background: dc.bg, color: dc.color }}>
                       <LuTag size={10} /> {dept}
@@ -112,7 +112,7 @@ export default function EmployeeProfile() {
                 <span className="pf-perf-value">{loading ? '…' : `${completionRate}%`}</span>
               </div>
               <div className="pf-perf-row">
-                <span className="pf-perf-icon" style={{ color: '#0891b2' }}><LuZap size={16} /></span>
+                <span className="pf-perf-icon" style={{ color: '#1f8cb4' }}><LuZap size={16} /></span>
                 <span className="pf-perf-label">Active</span>
                 <span className="pf-perf-value">{loading ? '…' : activeOrders}</span>
               </div>

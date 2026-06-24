@@ -11,7 +11,7 @@ const ACTIVE_STATUSES = new Set(['placed', 'assigned', 'accepted']);
 const STATUS_COLORS = {
   placed:    '#f59e0b',
   assigned:  '#3b82f6',
-  accepted:  '#06b6d4',
+  accepted:  '#33a8d1',
   review:    '#8b5cf6',
   overdue:   '#dc2626',
 };
@@ -101,7 +101,7 @@ function OrderDetail({ order, onClose }) {
       <div className="pw-meta-strip">
         <div className="pw-meta-item">
           <span className="pw-meta-label">Total</span>
-          <span className="pw-meta-value">${order.totalPrice?.toFixed(2) ?? '—'}</span>
+          <span className="pw-meta-value">€{order.totalPrice?.toFixed(2) ?? '—'}</span>
         </div>
         <div className="pw-meta-item">
           <span className="pw-meta-label">Placed</span>

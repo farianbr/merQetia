@@ -15,6 +15,35 @@ const LOGO_DATA_URI = (() => {
   }
 })();
 
+/* ── Brand palette (merQetia guideline) ───────────────────────── */
+const BRAND = {
+  navy: '#08303d',
+  cyan: '#1f8cb4',
+  cyanBright: '#33a8d1',
+  green: '#84de89',
+  vanilla: '#f1dd9e',
+  lavender: '#c9a3d4',
+  offWhite: '#f1f1f0',
+  ink: '#0f2b35',
+  muted: '#5a6c73',
+  hair: '#e4e6e3',
+};
+
+/* Company details (from letterhead). */
+const COMPANY = {
+  name: 'merQetia',
+  email: 'info@merQetia.com',
+  phone: '+31 6 1468 8733',
+  web: 'www.merQetia.nl',
+  address: 'Lingestraat 11, 1316 CN Almere',
+  iban: 'NL63 INGB 0113 5871 47',
+  kvk: '98070304',
+};
+
+/** Euro money formatter — €1,234.56 */
+const eur = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
+const money = (n) => eur.format(Number(n) || 0);
+
 /**
  * Generates an HTML string for an invoice.
  * @param {Object} invoice - Populated invoice document
@@ -34,17 +63,17 @@ const generateInvoiceHTML = (invoice) => {
       <tr>
         <td>${s.name}</td>
         <td>${s.department}</td>
-        <td style="text-align:right;">$${s.price.toFixed(2)}</td>
+        <td style="text-align:right;">${money(s.price)}</td>
       </tr>`
     )
     .join('');
 
-  const issuedDate = new Date(invoice.createdAt).toLocaleDateString('en-US', {
+  const issuedDate = new Date(invoice.createdAt).toLocaleDateString('en-GB', {
     year: 'numeric', month: 'long', day: 'numeric',
   });
 
   const paidDate = invoice.paidAt
-    ? new Date(invoice.paidAt).toLocaleDateString('en-US', {
+    ? new Date(invoice.paidAt).toLocaleDateString('en-GB', {
         year: 'numeric', month: 'long', day: 'numeric',
       })
     : '—';
@@ -53,129 +82,173 @@ const generateInvoiceHTML = (invoice) => {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1f2937; padding: 48px; font-size: 14px; }
+    :root {
+      --navy: ${BRAND.navy}; --cyan: ${BRAND.cyan}; --ink: ${BRAND.ink};
+      --muted: ${BRAND.muted}; --hair: ${BRAND.hair}; --off: ${BRAND.offWhite};
+    }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Plus Jakarta Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      color: var(--ink); font-size: 13.5px; line-height: 1.5;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .display { font-family: 'Space Grotesk', 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: -.01em; }
 
-    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
-    /* Full merQetia wordmark lockup. */
+    .sheet { position: relative; min-height: 100%; padding: 56px 56px 120px; }
+
+    /* Top brand hairline */
+    .top-rule { position: absolute; top: 0; left: 0; right: 0; height: 6px;
+      background: linear-gradient(90deg, ${BRAND.navy} 0%, ${BRAND.cyanBright} 38%, ${BRAND.green} 64%, ${BRAND.vanilla} 84%, ${BRAND.lavender} 100%); }
+
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 44px; }
     .brand-logo { height: 40px; width: auto; display: block; }
 
     .invoice-meta { text-align: right; }
-    .invoice-meta h2 { font-size: 20px; font-weight: 700; color: #0e7490; margin-bottom: 4px; }
-    .invoice-meta p { color: #6b7280; font-size: 13px; }
-
+    .invoice-meta .label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
+    .invoice-meta h2 { font-size: 24px; font-weight: 700; color: var(--navy); margin: 2px 0 8px; }
     .status-badge {
-      display: inline-block;
-      padding: 4px 14px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      color: white;
-      background: ${statusColor};
-      margin-top: 6px;
+      display: inline-block; padding: 5px 16px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; letter-spacing: .6px;
+      color: white; background: ${statusColor};
     }
 
-    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 28px 0; }
+    .parties { display: flex; justify-content: space-between; gap: 32px; margin-bottom: 32px; }
+    .party { max-width: 48%; }
+    .party h4 { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--cyan); margin-bottom: 8px; font-weight: 700; }
+    .party p { color: var(--ink); font-size: 14px; font-weight: 600; }
+    .party .sub { color: var(--muted); font-size: 12.5px; font-weight: 400; margin-top: 2px; }
+    .party.to { text-align: right; }
 
-    .parties { display: flex; justify-content: space-between; margin-bottom: 32px; }
-    .party h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #9ca3af; margin-bottom: 8px; }
-    .party p { color: #1f2937; font-size: 14px; font-weight: 500; }
-    .party .sub { color: #6b7280; font-size: 13px; font-weight: 400; }
+    .dates { display: flex; gap: 14px; margin-bottom: 30px; }
+    .date-item { flex: 1; background: var(--off); border: 1px solid var(--hair); border-radius: 12px; padding: 12px 16px; }
+    .date-item label { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); display: block; margin-bottom: 4px; }
+    .date-item span { font-size: 13.5px; color: var(--ink); font-weight: 600; }
 
-    table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
-    thead tr { background: #f3f4f6; }
-    thead th { padding: 10px 12px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 26px; }
+    thead th {
+      padding: 11px 14px; text-align: left; font-size: 10.5px; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--muted); font-weight: 700;
+      border-bottom: 2px solid var(--navy);
+    }
     thead th:last-child { text-align: right; }
-    tbody tr { border-bottom: 1px solid #f3f4f6; }
-    tbody td { padding: 10px 12px; color: #374151; }
+    tbody tr { border-bottom: 1px solid var(--hair); }
+    tbody td { padding: 12px 14px; color: var(--ink); font-size: 13.5px; }
 
     .total-section { display: flex; justify-content: flex-end; }
-    .total-box { width: 260px; }
-    .total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; color: #6b7280; }
-    .total-row.final { border-top: 2px solid #e5e7eb; margin-top: 6px; padding-top: 10px; font-size: 16px; font-weight: 700; color: #1f2937; }
+    .total-box { width: 280px; }
+    .total-row { display: flex; justify-content: space-between; padding: 7px 0; font-size: 13.5px; color: var(--muted); }
+    .total-row.final {
+      border-top: 2px solid var(--navy); margin-top: 8px; padding-top: 12px;
+      font-size: 17px; font-weight: 700; color: var(--navy);
+    }
+    .total-row.final .amt { color: var(--cyan); }
 
-    .footer { margin-top: 48px; text-align: center; font-size: 12px; color: #9ca3af; }
+    .notes { margin-top: 28px; background: var(--off); border: 1px solid var(--hair); border-left: 3px solid ${BRAND.cyanBright}; border-radius: 10px; padding: 14px 18px; color: var(--ink); font-size: 13px; }
+    .notes strong { color: var(--navy); }
 
-    .dates { display: flex; gap: 40px; margin-bottom: 32px; }
-    .date-item label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: #9ca3af; display: block; margin-bottom: 4px; }
-    .date-item span { font-size: 14px; color: #374151; font-weight: 500; }
+    /* Footer band with company / payment details */
+    .footer {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      background: var(--navy); color: rgba(255,255,255,.82);
+      padding: 22px 56px; display: flex; justify-content: space-between; gap: 24px;
+      font-size: 11px; line-height: 1.7;
+    }
+    .footer .col strong { color: #fff; display: block; font-size: 11.5px; letter-spacing: .3px; margin-bottom: 2px; }
+    .footer .thanks { font-family: 'Space Grotesk', sans-serif; color: #fff; font-weight: 600; font-size: 13px; }
   </style>
 </head>
 <body>
+  <div class="sheet">
+    <div class="top-rule"></div>
 
-  <div class="header">
-    <img class="brand-logo" src="${LOGO_DATA_URI}" alt="merQetia" />
-    <div class="invoice-meta">
-      <h2>${invoice.invoiceNumber}</h2>
-      <p>Invoice</p>
-      <span class="status-badge">${statusLabel}</span>
-    </div>
-  </div>
-
-  <hr class="divider" />
-
-  <div class="parties">
-    <div class="party">
-      <h4>Billed To</h4>
-      <p>${client?.name || 'N/A'}</p>
-      <p class="sub">${client?.email || ''}</p>
-    </div>
-    <div class="party" style="text-align:right;">
-      <h4>From</h4>
-      <p>merQetia</p>
-      <p class="sub">billing@merqetia.com</p>
-    </div>
-  </div>
-
-  <div class="dates">
-    <div class="date-item">
-      <label>Issue Date</label>
-      <span>${issuedDate}</span>
-    </div>
-    <div class="date-item">
-      <label>Paid On</label>
-      <span>${paidDate}</span>
-    </div>
-    <div class="date-item">
-      <label>Type</label>
-      <span style="text-transform:capitalize;">${invoice.type}</span>
-    </div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Service</th>
-        <th>Department</th>
-        <th style="text-align:right;">Price</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${serviceRows}
-    </tbody>
-  </table>
-
-  <div class="total-section">
-    <div class="total-box">
-      <div class="total-row">
-        <span>Subtotal</span>
-        <span>$${invoice.amount.toFixed(2)}</span>
-      </div>
-      <div class="total-row final">
-        <span>Total Due</span>
-        <span>$${invoice.amount.toFixed(2)}</span>
+    <div class="header">
+      <img class="brand-logo" src="${LOGO_DATA_URI}" alt="merQetia" />
+      <div class="invoice-meta">
+        <div class="label">Invoice</div>
+        <h2 class="display">${invoice.invoiceNumber}</h2>
+        <span class="status-badge">${statusLabel}</span>
       </div>
     </div>
+
+    <div class="parties">
+      <div class="party from">
+        <h4>From</h4>
+        <p>${COMPANY.name}</p>
+        <p class="sub">${COMPANY.address}</p>
+        <p class="sub">${COMPANY.email}</p>
+        <p class="sub">${COMPANY.web}</p>
+      </div>
+      <div class="party to">
+        <h4>Billed To</h4>
+        <p>${client?.name || 'N/A'}</p>
+        <p class="sub">${client?.email || ''}</p>
+      </div>
+    </div>
+
+    <div class="dates">
+      <div class="date-item">
+        <label>Issue Date</label>
+        <span>${issuedDate}</span>
+      </div>
+      <div class="date-item">
+        <label>Paid On</label>
+        <span>${paidDate}</span>
+      </div>
+      <div class="date-item">
+        <label>Type</label>
+        <span style="text-transform:capitalize;">${invoice.type}</span>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Department</th>
+          <th style="text-align:right;">Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${serviceRows}
+      </tbody>
+    </table>
+
+    <div class="total-section">
+      <div class="total-box">
+        <div class="total-row">
+          <span>Subtotal</span>
+          <span>${money(invoice.amount)}</span>
+        </div>
+        <div class="total-row final">
+          <span>Total Due</span>
+          <span class="amt">${money(invoice.amount)}</span>
+        </div>
+      </div>
+    </div>
+
+    ${invoice.notes ? `<div class="notes"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
+
+    <div class="footer">
+      <div class="col">
+        <span class="thanks">Thank you for your business.</span>
+      </div>
+      <div class="col">
+        <strong>Payment</strong>
+        IBAN ${COMPANY.iban}<br/>
+        KVK ${COMPANY.kvk}
+      </div>
+      <div class="col">
+        <strong>Contact</strong>
+        ${COMPANY.phone}<br/>
+        ${COMPANY.email}
+      </div>
+    </div>
   </div>
-
-  ${invoice.notes ? `<p style="margin-top:24px;color:#6b7280;font-size:13px;"><strong>Notes:</strong> ${invoice.notes}</p>` : ''}
-
-  <div class="footer">
-    <p>Thank you for your business — merQetia</p>
-  </div>
-
 </body>
 </html>`;
 };

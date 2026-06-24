@@ -11,7 +11,7 @@ const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://lo
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',     bg: '#fef3c7', color: '#b45309' },
   assigned:  { label: 'Assigned',    bg: '#dbeafe', color: '#1d4ed8' },
-  accepted:  { label: 'In Progress', bg: '#cffafe', color: '#155e75' },
+  accepted:  { label: 'In Progress', bg: '#d8eef7', color: '#155e75' },
   review:    { label: 'In Review',   bg: '#ede9fe', color: '#5b21b6' },
   overdue:   { label: 'Overdue',     bg: '#fee2e2', color: '#b91c1c' },
   rejected:  { label: 'Rejected',    bg: '#fee2e2', color: '#b91c1c' },
@@ -24,7 +24,7 @@ function fmtDate(iso) {
 }
 
 function fmtCurrency(n) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0);
+  return new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0);
 }
 
 function initials(name) {

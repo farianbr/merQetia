@@ -7,7 +7,7 @@ import { useSocket } from '../../context/SocketContext';
 const STATUS_CONFIG = {
   placed:    { label: 'Pending',     color: '#6b7280', bg: '#f3f4f6' },
   assigned:  { label: 'Assigned',    color: '#2563eb', bg: '#dbeafe' },
-  accepted:  { label: 'In Progress', color: '#0e7490', bg: '#cffafe' },
+  accepted:  { label: 'In Progress', color: '#1f8cb4', bg: '#d8eef7' },
   review:    { label: 'In Review',   color: '#5b21b6', bg: '#ede9fe' },
   overdue:   { label: 'Overdue',     color: '#dc2626', bg: '#fee2e2' },
   rejected:  { label: 'Rejected',    color: '#dc2626', bg: '#fee2e2' },
@@ -27,7 +27,7 @@ STATUS_LABEL.all = 'All Statuses';
 
 const PAGE_SIZE = 10;
 
-const AVATAR_COLORS = ['#0e7490','#0891b2','#059669','#d97706','#db2777','#0e7490','#0284c7','#16a34a'];
+const AVATAR_COLORS = ['#1f8cb4','#1f8cb4','#059669','#d97706','#db2777','#1f8cb4','#0284c7','#16a34a'];
 function avatarColor(name = '') {
   const code = [...(name || 'U')].reduce((a, c) => a + c.charCodeAt(0), 0);
   return AVATAR_COLORS[code % AVATAR_COLORS.length];
@@ -223,7 +223,7 @@ export default function AdminOrders() {
         </div>
         <div className="card om-stat-card">
           <div className="om-stat-top">
-            <div className="om-stat-icon" style={{ background: '#ecfeff' }}><LuCircleCheck size={20} color="#06b6d4" /></div>
+            <div className="om-stat-icon" style={{ background: '#eef8fc' }}><LuCircleCheck size={20} color="#33a8d1" /></div>
             <TrendBadge
               value={stats.completedTrend}
               tooltip={`Orders completed this month vs last month.`}

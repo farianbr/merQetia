@@ -16,7 +16,7 @@ import {
 const STATUS_CONFIG = {
   placed:    { label: 'Placed',      color: '#92400e', bg: '#fef3c7', dot: '#f59e0b' },
   assigned:  { label: 'Assigned',    color: '#1e40af', bg: '#dbeafe', dot: '#3b82f6' },
-  accepted:  { label: 'In Progress', color: '#155e75', bg: '#cffafe', dot: '#06b6d4' },
+  accepted:  { label: 'In Progress', color: '#155e75', bg: '#d8eef7', dot: '#33a8d1' },
   review:    { label: 'In Review',   color: '#5b21b6', bg: '#ede9fe', dot: '#8b5cf6' },
   overdue:   { label: 'Overdue',     color: '#991b1b', bg: '#fee2e2', dot: '#ef4444' },
   rejected:  { label: 'Rejected',    color: '#991b1b', bg: '#fee2e2', dot: '#ef4444' },
@@ -397,13 +397,13 @@ export default function AdminOrderDetail() {
           {/* Assign employee — when no employee assigned (placed) */}
           {order.status === 'placed' && (
             <button className="odv-ctrl-btn" onClick={() => { setSelectedEmployee(''); setAssignError(''); setModal('assign'); }}>
-              <LuUserCog size={14} color="#06b6d4" /> Assign Employee
+              <LuUserCog size={14} color="#33a8d1" /> Assign Employee
             </button>
           )}
           {/* Reassign — before the employee accepts (still assigned) */}
           {order.status === 'assigned' && (
             <button className="odv-ctrl-btn" onClick={() => { setSelectedEmployee(''); setAssignError(''); setModal('assign'); }}>
-              <LuUserCog size={14} color="#06b6d4" /> Reassign Employee
+              <LuUserCog size={14} color="#33a8d1" /> Reassign Employee
             </button>
           )}
           {/* Change delivery date — only when accepted (in progress) */}
@@ -435,7 +435,7 @@ export default function AdminOrderDetail() {
 
           {/* Core Information */}
           <section className="odv-card">
-            <h2 className="odv-card-title"><LuLayoutList size={16} color="#0e7490" />Core Information</h2>
+            <h2 className="odv-card-title"><LuLayoutList size={16} color="#1f8cb4" />Core Information</h2>
             <div className="odv-info-grid">
               <div className="odv-info-item">
                 <span className="odv-info-label">SERVICE TYPE</span>
@@ -447,7 +447,7 @@ export default function AdminOrderDetail() {
               </div>
               <div className="odv-info-item">
                 <span className="odv-info-label">BUDGET</span>
-                <span className="odv-info-value odv-info-price">${order.totalPrice?.toFixed(2)}</span>
+                <span className="odv-info-value odv-info-price">€{order.totalPrice?.toFixed(2)}</span>
               </div>
               <div className="odv-info-item">
                 <span className="odv-info-label">START DATE</span>
@@ -471,7 +471,7 @@ export default function AdminOrderDetail() {
           {/* Project Brief */}
           {(order.summary || order.notes) && (
             <section className="odv-card">
-              <h2 className="odv-card-title"><LuFileText size={16} color="#06b6d4" />Project Brief</h2>
+              <h2 className="odv-card-title"><LuFileText size={16} color="#33a8d1" />Project Brief</h2>
               <p className="odv-brief-text">{order.summary || order.notes}</p>
             </section>
           )}
@@ -573,7 +573,7 @@ export default function AdminOrderDetail() {
                 const isClient = msg.senderRole === 'client';
                 const name = msg.sender?.name || '—';
                 const initials = name.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
-                const avatarBg = isClient ? '#3b82f6' : '#06b6d4';
+                const avatarBg = isClient ? '#3b82f6' : '#33a8d1';
                 return (
                   <div key={msg._id} className="odv-msg odv-msg--left">
                     <span className="odv-msg-avatar" style={{ background: avatarBg }}>{initials}</span>

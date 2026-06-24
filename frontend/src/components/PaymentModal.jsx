@@ -13,7 +13,7 @@ const fmtExpiry = (v) => {
   return digits;
 };
 
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const eur = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' });
 
 export default function PaymentModal({ invoice, onClose, onPaid }) {
   const [card, setCard] = useState('');
@@ -79,7 +79,7 @@ export default function PaymentModal({ invoice, onClose, onPaid }) {
           <>
             <div className="pm-amount-block">
               <span className="pm-inv-num">{invoice.invoiceNumber}</span>
-              <span className="pm-amount">{usd.format(invoice.amount)}</span>
+              <span className="pm-amount">{eur.format(invoice.amount)}</span>
             </div>
 
             <div className="pm-demo-hint">
@@ -153,7 +153,7 @@ export default function PaymentModal({ invoice, onClose, onPaid }) {
                 className="btn-primary pm-pay-btn"
                 disabled={submitting}
               >
-                {submitting ? 'Processing…' : `Pay ${usd.format(invoice.amount)}`}
+                {submitting ? 'Processing…' : `Pay ${eur.format(invoice.amount)}`}
               </button>
             </form>
           </>

@@ -20,7 +20,7 @@ function fmtTime(iso) {
 const STATUS_COLORS = {
   placed: '#f59e0b',
   assigned: '#3b82f6',
-  accepted: '#06b6d4',
+  accepted: '#33a8d1',
   review: '#8b5cf6',
   overdue: '#dc2626',
   rejected: '#ef4444',
@@ -56,12 +56,12 @@ function OrderDetailsContent({ order, onViewMedia }) {
           {(order.services || []).map((s) => (
             <div key={s._id} className="co-dp-service-row">
               <span className="co-dp-service-name">{s.name}</span>
-              <span className="co-dp-service-price">${s.price?.toFixed(2)}</span>
+              <span className="co-dp-service-price">€{s.price?.toFixed(2)}</span>
             </div>
           ))}
           <div className="co-dp-total-row">
             <span>Total</span>
-            <span className="co-dp-total-amount">${order.totalPrice?.toFixed(2)}</span>
+            <span className="co-dp-total-amount">€{order.totalPrice?.toFixed(2)}</span>
           </div>
         </div>
       </div>
@@ -97,7 +97,7 @@ function OrderDetailsContent({ order, onViewMedia }) {
           </div>
           <div className="co-dp-info-row">
             <span className="co-dp-info-key">Total</span>
-            <span className="co-dp-info-val co-dp-info-price">${order.totalPrice?.toFixed(2)}</span>
+            <span className="co-dp-info-val co-dp-info-price">€{order.totalPrice?.toFixed(2)}</span>
           </div>
           {order.deliveryDate && (
             <div className="co-dp-info-row">
