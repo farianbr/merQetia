@@ -1,16 +1,21 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LuSearch, LuShoppingBag, LuUser, LuBriefcase, LuChevronRight } from 'react-icons/lu';
+import { LuSearch, LuShoppingBag, LuUser, LuBriefcase, LuChevronRight, LuLifeBuoy } from 'react-icons/lu';
 
-export default function CommandPalette({ searchItems, onOrderSearch, fetchSuggestions, fetchPeopleSuggestions, onClose }) {
+export default function CommandPalette({
+  searchItems, onOrderSearch, fetchSuggestions, fetchPeopleSuggestions,
+  fetchTicketSuggestions, onTicketSearch, onClose,
+}) {
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
   const [orderSuggestions, setOrderSuggestions] = useState(() => fetchSuggestions ? null : []);
   const [peopleSuggestions, setPeopleSuggestions] = useState(() => fetchPeopleSuggestions ? null : []);
+  const [ticketSuggestions, setTicketSuggestions] = useState(() => fetchTicketSuggestions ? null : []);
   const navigate = useNavigate();
   const inputRef = useRef(null);
   const fetchRef = useRef(fetchSuggestions);
   const fetchPeopleRef = useRef(fetchPeopleSuggestions);
+  const fetchTicketRef = useRef(fetchTicketSuggestions);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -26,6 +31,13 @@ export default function CommandPalette({ searchItems, onOrderSearch, fetchSugges
     fetchPeopleRef.current()
       .then((items) => setPeopleSuggestions(items))
       .catch(() => setPeopleSuggestions([]));
+  }, []);
+
+  useEffect(() => {
+    if (!fetchTicketRef.current) return;
+    fetchTicketRef.current()
+      .then((items) => setTicketSuggestions(items))
+      .catch(() => setTicketSuggestions([]));
   }, []);
 
   const filtered = useMemo(() => {
@@ -69,12 +81,34 @@ export default function CommandPalette({ searchItems, onOrderSearch, fetchSugges
         });
     }
 
+    if (ticketSuggestions) {
+      ticketSuggestions
+        .filter((t) =>
+          t.ticketId?.toLowerCase().includes(q) ||
+          t.subject?.toLowerCase().includes(q) ||
+          t.clientName?.toLowerCase().includes(q)
+        )
+        .slice(0, 5)
+        .forEach((t) => {
+          extra.push({
+            label: `${t.ticketId} — ${t.subject}`,
+            group: 'Tickets',
+            Icon: LuLifeBuoy,
+            isTicket: true,
+            ticketId: t._id,
+            key: `__ticket__${t._id}`,
+          });
+        });
+    }
+
     return [...extra, ...pageItems];
-  }, [query, searchItems, orderSuggestions, peopleSuggestions]);
+  }, [query, searchItems, orderSuggestions, peopleSuggestions, ticketSuggestions]);
 
   const go = (item) => {
     if (item.isOrder && onOrderSearch) {
       onOrderSearch(item.orderId);
+    } else if (item.isTicket && onTicketSearch) {
+      onTicketSearch(item.ticketId);
     } else if (item.path) {
       navigate(item.path);
     }

@@ -83,4 +83,38 @@ const getClientById = async (req, res, next) => {
   }
 };
 
-module.exports = { dashboard, getAllClients, getClientById };
+/**
+ * GET /api/clients/:id/shared
+ * Employee only — a client's basic profile, scoped to the orders the requesting
+ * employee is assigned to. Used for clickable client names on the employee
+ * dashboard. Access is denied unless the employee shares at least one order
+ * with the client (no billing/invoice data is exposed).
+ */
+const getClientForEmployee = async (req, res, next) => {
+  try {
+    const User = require('../models/User');
+    const Order = require('../models/Order');
+
+    const orders = await Order.find({ clientId: req.params.id, assignedEmployee: req.user.id })
+      .populate('services', 'name')
+      .select('_id status createdAt totalPrice deliveryDate services')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (orders.length === 0) {
+      return res.status(403).json({ success: false, message: 'You can only view clients you are working with.' });
+    }
+
+    const client = await User.findOne({ _id: req.params.id, role: 'client' })
+      .select('name email avatar createdAt phone address')
+      .lean();
+
+    if (!client) return res.status(404).json({ success: false, message: 'Client not found' });
+
+    res.status(200).json({ success: true, client, orders });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { dashboard, getAllClients, getClientById, getClientForEmployee };

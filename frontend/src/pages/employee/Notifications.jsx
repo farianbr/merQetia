@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
-import { LuActivity, LuMessageSquare, LuBell, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
+import { LuActivity, LuMessageSquare, LuBell, LuChevronLeft, LuChevronRight, LuLifeBuoy } from 'react-icons/lu';
 
 const PAGE_SIZE = 10;
 
@@ -18,6 +18,7 @@ function fmtTime(iso) {
 const TYPE_ICON = {
   status:  <LuActivity     size={16} />,
   message: <LuMessageSquare size={16} />,
+  support: <LuLifeBuoy      size={16} />,
 };
 
 export default function EmployeeNotifications() {
@@ -31,6 +32,7 @@ export default function EmployeeNotifications() {
 
   const handleClick = (n) => {
     markRead(n._id);
+    if (n.link) return navigate(n.link);
     if (n.type === 'message') {
       navigate(`/employee?openUpdate=${n.orderId}`);
     } else {

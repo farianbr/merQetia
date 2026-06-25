@@ -20,10 +20,14 @@ const STATUS_LABEL = {
 
 const NORMAL_STEPS = ['placed', 'assigned', 'accepted', 'review', 'completed'];
 
-export default function OrderTimeline({ status }) {
+export default function OrderTimeline({ status, deliveryDate }) {
   const isRejected = status === 'rejected';
   const steps = isRejected ? ['placed', 'assigned', 'rejected'] : NORMAL_STEPS;
   const activeIndex = steps.indexOf(status);
+
+  const dueLabel = deliveryDate
+    ? new Date(deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
 
   return (
     <div className="co-timeline">
@@ -74,6 +78,11 @@ export default function OrderTimeline({ status }) {
               >
                 {STATUS_LABEL[step]}
               </span>
+              {step === 'completed' && dueLabel && (
+                <span className="co-tl-subdate" title="Due date">
+                  Due {dueLabel}
+                </span>
+              )}
             </div>
           </div>
         );

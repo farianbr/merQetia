@@ -5,8 +5,11 @@ const Notification = require('../models/Notification');
 const Invoice = require('../models/Invoice');
 const { generateOrderSummary } = require('./aiService');
 const { generateInvoice } = require('./invoiceService');
-const { sendOrderConfirmation, sendNewOrderAdminAlert, sendOrderAssignedEmployee } = require('./emailService');
+const { sendOrderConfirmation, sendNewOrderAdminAlert, sendOrderAssignedEmployee, sendGenericNotification } = require('./emailService');
+const meetingService = require('./meetingService');
 const { emitToUser, emitToAdmins } = require('../socket');
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 const STATUS_LABEL = {
   placed: 'Placed',
@@ -17,20 +20,51 @@ const STATUS_LABEL = {
   completed: 'Completed',
 };
 
+const ROLE_HOME = { admin: '/admin', employee: '/employee', client: '/dashboard' };
+
 /**
- * Push a notification to a user. Fire-and-forget (non-blocking).
+ * Notify a user about an order event, honouring their per-event preferences for
+ * each channel. Sends an in-app notification (unless they opted out) and, if
+ * they opted into email for that event, a generic notification email.
+ * Fire-and-forget (non-blocking, never throws).
+ *
+ * @param {string} key   - notification event key (see User.NOTIFICATION_KEYS)
+ * @param {Object} [opts]
+ * @param {boolean} [opts.email=true] - set false when a dedicated email already
+ *        covers this event (new order alert / assignment) to avoid double-sending.
  */
-const pushNotification = (userId, orderId, orderNum, type, typeLabel, body) => {
-  Notification.create({
-    userId,
-    orderId,
-    type,
-    typeLabel,
-    title: `Order ${orderNum}`,
-    body,
-  })
-    // Push the new notification live to the recipient's open sessions
-    .then((notif) => emitToUser(userId, 'notification:new', notif.toObject()))
+const notify = (userId, orderId, orderNum, type, typeLabel, body, key, { email = true } = {}) => {
+  User.findById(userId)
+    .select('name email role notificationPrefs')
+    .then((u) => {
+      if (!u) return;
+      const prefs = u.notificationPrefs || {};
+
+      // In-app (default on unless explicitly disabled)
+      if (prefs.inApp?.[key] !== false) {
+        Notification.create({ userId, orderId, type, typeLabel, title: `Order ${orderNum}`, body })
+          .then((notif) => emitToUser(userId, 'notification:new', notif.toObject()))
+          .catch(() => {});
+      }
+
+      // Email (opt-in: only when explicitly enabled)
+      if (email && prefs.email?.[key] === true) {
+        const home = ROLE_HOME[u.role] || '/dashboard';
+        const ctaUrl = (key === 'mentions' || key === 'teamUpdates')
+          ? `${FRONTEND_URL}${home}?openUpdate=${orderId}`
+          : `${FRONTEND_URL}${home}`;
+        sendGenericNotification({
+          to: u.email,
+          recipientName: u.name,
+          subject: `${typeLabel} — order ${orderNum}`,
+          heading: typeLabel,
+          message: body,
+          orderNum,
+          ctaLabel: 'Open Dashboard',
+          ctaUrl,
+        });
+      }
+    })
     .catch(() => {});
 };
 
@@ -84,11 +118,19 @@ const validateAnswers = (services, answers) => {
   const missing = [];
 
   for (const service of services) {
-    if (!service.questions || service.questions.length === 0) continue;
-
     const serviceAnswers = answers[service._id.toString()] || {};
+    const allowed = new Set(service.questions || []);
 
-    for (const question of service.questions) {
+    // Reject any answer key that doesn't correspond to a real question on this
+    // service. This stops a client from injecting arbitrary Q&A pairs that would
+    // otherwise be assembled verbatim into the AI prompt.
+    for (const key of Object.keys(serviceAnswers)) {
+      if (!allowed.has(key)) {
+        missing.push(`Unexpected answer "${key}" (service: ${service.name})`);
+      }
+    }
+
+    for (const question of allowed) {
       const answer = serviceAnswers[question];
       if (!answer || String(answer).trim() === '') {
         missing.push(`Missing answer for "${question}" (service: ${service.name})`);
@@ -137,24 +179,30 @@ const createOrder = async ({ clientId, serviceIds, answers = {} }) => {
   await sendOrderConfirmation({ order: populatedOrder, invoice, client });
 
   // Notify all admins about the new order (fire-and-forget)
-  User.find({ role: 'admin' }).select('_id name email').then((admins) => {
+  User.find({ role: 'admin' }).select('_id name email notificationPrefs').then((admins) => {
     const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
     const serviceNames = services.map((s) => s.name).join(', ');
-    sendNewOrderAdminAlert({
-      admins,
-      clientName: client.name,
-      services: services.map((s) => ({ name: s.name })),
-      orderId: order._id,
-      orderNum,
-    });
+    // Email only the admins who have the new-order email enabled.
+    const emailAdmins = admins.filter((a) => a.notificationPrefs?.email?.newOrder === true);
+    if (emailAdmins.length) {
+      sendNewOrderAdminAlert({
+        admins: emailAdmins,
+        clientName: client.name,
+        services: services.map((s) => ({ name: s.name })),
+        orderId: order._id,
+        orderNum,
+      });
+    }
     admins.forEach((admin) =>
-      pushNotification(
+      notify(
         admin._id,
         order._id,
         orderNum,
         'status',
         'New Order',
-        `New order ${orderNum} placed by ${client.name} for: ${serviceNames}. Needs employee assignment.`
+        `New order ${orderNum} placed by ${client.name} for: ${serviceNames}. Needs employee assignment.`,
+        'newOrder',
+        { email: false } // dedicated rich email sent above
       )
     );
   }).catch(() => {});
@@ -305,17 +353,18 @@ const assignEmployee = async (orderId, employeeId) => {
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
   // Notify the previously-assigned employee that the order was reassigned away.
   if (isReassignment) {
-    pushNotification(previousEmployeeId, order._id, orderNum, 'status', 'Order Reassigned', `Order ${orderNum} has been reassigned to another employee and is no longer in your queue.`);
+    notify(previousEmployeeId, order._id, orderNum, 'status', 'Order Reassigned', `Order ${orderNum} has been reassigned to another employee and is no longer in your queue.`, 'reassigned');
   }
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Assigned', `Your order ${orderNum} has been assigned to an employee. They will review and respond shortly.`);
-  pushNotification(employeeId, order._id, orderNum, 'status', 'New Order Assigned to You', `Order ${orderNum} from a client has been assigned to you. Please review and accept or decline.`);
+  notify(order.clientId, order._id, orderNum, 'status', 'Order Assigned', `Your order ${orderNum} has been assigned to an employee. They will review and respond shortly.`, 'orderAssigned');
+  notify(employeeId, order._id, orderNum, 'status', 'New Order Assigned to You', `Order ${orderNum} from a client has been assigned to you. Please review and accept or decline.`, 'newAssignment', { email: false }); // dedicated rich email sent below
 
   // Email the assigned employee (fire-and-forget)
   Promise.all([
     order.populate('services', 'name'),
-    User.findById(employeeId).select('name email'),
+    User.findById(employeeId).select('name email notificationPrefs'),
     User.findById(order.clientId).select('name'),
   ]).then(([populatedOrderWithServices, employee, client]) => {
+    if (employee?.notificationPrefs?.email?.newAssignment !== true) return;
     sendOrderAssignedEmployee({
       employee,
       clientName: client?.name || 'Client',
@@ -358,9 +407,9 @@ const acceptOrder = async (orderId, employeeId, deliveryDate) => {
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
   const fmtDelivery = new Date(deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order In Progress', `Your order ${orderNum} has been accepted and is now in progress. Estimated delivery: ${fmtDelivery}.`);
+  notify(order.clientId, order._id, orderNum, 'status', 'Order In Progress', `Your order ${orderNum} has been accepted and is now in progress. Estimated delivery: ${fmtDelivery}.`, 'orderInProgress');
   User.find({ role: 'admin' }).select('_id').then((admins) => {
-    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Accepted by Employee', `Order ${orderNum} has been accepted by the assigned employee. Delivery date set to ${fmtDelivery}.`));
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order Accepted by Employee', `Order ${orderNum} has been accepted by the assigned employee. Delivery date set to ${fmtDelivery}.`, 'orderAccepted'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -399,12 +448,12 @@ const rejectOrder = async (orderId, employeeId, reason) => {
   const rejectBody = reason
     ? `Your order ${orderNum} was declined by the employee. Reason: ${reason}. Admin will arrange reassignment.`
     : `Your order ${orderNum} was declined by the employee. Admin will arrange reassignment.`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Declined', rejectBody);
+  notify(order.clientId, order._id, orderNum, 'status', 'Order Declined', rejectBody, 'orderDeclined');
   User.find({ role: 'admin' }).select('_id').then((admins) => {
     const adminBody = reason
       ? `Order ${orderNum} was rejected by the employee. Reason: ${reason}.`
       : `Order ${orderNum} was rejected by the employee. No reason provided.`;
-    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Rejected by Employee', adminBody));
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order Rejected by Employee', adminBody, 'orderRejected'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -448,9 +497,9 @@ const submitForReview = async (orderId, employeeId) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Ready for Review', `Your order ${orderNum} is ready for review. Please confirm completion or request changes.`);
+  notify(order.clientId, order._id, orderNum, 'status', 'Order Ready for Review', `Your order ${orderNum} is ready for review. Please confirm completion or request changes.`, 'orderReview');
   User.find({ role: 'admin' }).select('_id').then((admins) => {
-    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Submitted for Review', `Order ${orderNum} has been submitted for client review by the assigned employee.`));
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order Submitted for Review', `Order ${orderNum} has been submitted for client review by the assigned employee.`, 'orderSubmitted'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -487,10 +536,10 @@ const confirmOrder = async (orderId, clientId) => {
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
   if (order.assignedEmployee) {
-    pushNotification(order.assignedEmployee, order._id, orderNum, 'status', 'Order Completed', `The client has confirmed and completed order ${orderNum}. Great work!`);
+    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Order Completed', `The client has confirmed and completed order ${orderNum}. Great work!`, 'orderCompleted');
   }
   User.find({ role: 'admin' }).select('_id').then((admins) => {
-    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been confirmed and completed by the client.`));
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been confirmed and completed by the client.`, 'orderCompleted'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -538,10 +587,10 @@ const requestChanges = async (orderId, clientId, note) => {
     ? `The client requested changes on order ${orderNum}: "${note.slice(0, 120)}"`
     : `The client requested changes on order ${orderNum}.`;
   if (order.assignedEmployee) {
-    pushNotification(order.assignedEmployee, order._id, orderNum, 'status', 'Changes Requested', body);
+    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Changes Requested', body, 'changesRequested');
   }
   User.find({ role: 'admin' }).select('_id').then((admins) => {
-    admins.forEach((a) => pushNotification(a._id, order._id, orderNum, 'status', 'Changes Requested', body));
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Changes Requested', body, 'changesRequested'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -572,9 +621,9 @@ const adminForceComplete = async (orderId) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Completed', `Your order ${orderNum} has been marked as completed.`);
+  notify(order.clientId, order._id, orderNum, 'status', 'Order Completed', `Your order ${orderNum} has been marked as completed.`, 'orderCompleted');
   if (order.assignedEmployee) {
-    pushNotification(order.assignedEmployee, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been marked as completed by an admin.`);
+    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been marked as completed by an admin.`, 'orderCompleted');
   }
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -622,12 +671,12 @@ const addMessage = async (orderId, senderId, senderRole, text, attachments = [])
     const body = text
       ? `Your employee sent a message on order ${orderNum}: "${text.slice(0, 80)}"`
       : `Your employee shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
-    pushNotification(order.clientId, order._id, orderNum, 'message', 'New Message from Employee', body);
+    notify(order.clientId, order._id, orderNum, 'message', 'New Message from Employee', body, 'messages');
   } else if (senderRole === 'client' && order.assignedEmployee) {
     const body = text
       ? `Client sent a message on order ${orderNum}: "${text.slice(0, 80)}"`
       : `Client shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
-    pushNotification(order.assignedEmployee, order._id, orderNum, 'message', 'New Message from Client', body);
+    notify(order.assignedEmployee, order._id, orderNum, 'message', 'New Message from Client', body, 'messages');
   }
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -701,7 +750,9 @@ const addUpdate = async (orderId, senderId, senderRole, text, attachments = [], 
     const mentionBody = text
       ? `${senderName} mentioned you in an update on order ${orderNum}: "${text.slice(0, 80)}"`
       : `${senderName} mentioned you in an update on order ${orderNum}.`;
-    mentionIds.forEach((uid) => pushNotification(uid, order._id, orderNum, 'message', 'You were mentioned', mentionBody));
+    mentionIds.forEach((uid) =>
+      notify(uid, order._id, orderNum, 'message', 'You were mentioned', mentionBody, 'mentions'),
+    );
   }
   const mentionedSet = new Set(mentionIds);
 
@@ -714,13 +765,15 @@ const addUpdate = async (orderId, senderId, senderRole, text, attachments = [], 
     User.find({ role: 'admin' }).select('_id').then((admins) => {
       admins
         .filter((a) => !mentionedSet.has(a._id.toString()))
-        .forEach((a) => pushNotification(a._id, order._id, orderNum, 'message', 'New Update from Employee', body));
+        .forEach((a) =>
+          notify(a._id, order._id, orderNum, 'message', 'New Update from Employee', body, 'teamUpdates'),
+        );
     }).catch(() => {});
   } else if (senderRole === 'admin' && order.assignedEmployee && !mentionedSet.has(order.assignedEmployee.toString())) {
     const body = text
       ? `Admin posted an update on order ${orderNum}: "${text.slice(0, 80)}"`
       : `Admin shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
-    pushNotification(order.assignedEmployee, order._id, orderNum, 'message', 'New Update from Admin', body);
+    notify(order.assignedEmployee, order._id, orderNum, 'message', 'New Update from Admin', body, 'teamUpdates');
   }
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -771,9 +824,9 @@ const adminSetDeliveryDate = async (orderId, deliveryDate) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Delivery Date Updated', `Your delivery date has been updated to ${new Date(deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+  notify(order.clientId, order._id, orderNum, 'status', 'Delivery Date Updated', `Your delivery date has been updated to ${new Date(deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`, 'deliveryUpdated');
   if (order.assignedEmployee) {
-    pushNotification(order.assignedEmployee, order._id, orderNum, 'status', 'Delivery Date Updated', 'Admin has updated the delivery date for this order');
+    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Delivery Date Updated', 'Admin has updated the delivery date for this order', 'deliveryUpdated');
   }
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -810,7 +863,181 @@ const adminResetOrderStatus = async (orderId) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  pushNotification(order.clientId, order._id, orderNum, 'status', 'Order Status Updated', `Your order status has been updated`);
+  notify(order.clientId, order._id, orderNum, 'status', 'Order Status Updated', `Your order status has been updated`, 'statusReset');
+
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
+};
+
+/* ── Order meetings ─────────────────────────────────────────────────────────
+   The assigned employee can schedule video meetings with the client, mirroring
+   the support-ticket flow: a Google Calendar event with a Meet link, a branded
+   email invite, and an in-app notification. Meetings live on order.meetings. */
+
+const orderNumFor = (order) => `#${order._id.toString().slice(-6).toUpperCase()}`;
+const orderServiceName = (order) => (order.services || []).map((s) => s.name).join(', ') || 'Order';
+
+// Validate/normalise a requested meeting time. Throws (statusCode 400) on bad input.
+const parseMeetingTime = (scheduledAt, durationMins) => {
+  const when = new Date(scheduledAt);
+  if (!scheduledAt || isNaN(when.getTime())) {
+    const err = new Error('A valid meeting date/time is required');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (when.getTime() <= Date.now()) {
+    const err = new Error('The meeting time must be in the future');
+    err.statusCode = 400;
+    throw err;
+  }
+  const duration = Number(durationMins) > 0 ? Math.min(Number(durationMins), 480) : 30;
+  return { when, duration };
+};
+
+// Load an order and assert the caller is the assigned employee and the
+// conversation is open (accepted/review/completed).
+const loadOrderForMeeting = async (orderId, employeeId) => {
+  const order = await Order.findById(orderId).populate('clientId', 'name email').populate('services', 'name');
+  if (!order) {
+    const err = new Error('Order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (!order.assignedEmployee || order.assignedEmployee.toString() !== employeeId.toString()) {
+    const err = new Error('You are not assigned to this order');
+    err.statusCode = 403;
+    throw err;
+  }
+  if (!['accepted', 'review', 'completed'].includes(order.status)) {
+    const err = new Error('Meetings can only be scheduled once the order is in progress');
+    err.statusCode = 400;
+    throw err;
+  }
+  return order;
+};
+
+const meetingEventArgs = (order, note) => ({
+  summary: `merQetia · ${orderServiceName(order)}`,
+  description: [
+    `Order: ${orderNumFor(order)}`,
+    `Client: ${order.clientId?.name || ''} (${order.clientId?.email || ''})`,
+    note ? `\nNotes: ${note}` : '',
+  ].join('\n'),
+});
+
+const scheduleOrderMeeting = async (orderId, employeeId, { scheduledAt, durationMins, note }) => {
+  const { when, duration } = parseMeetingTime(scheduledAt, durationMins);
+  const order = await loadOrderForMeeting(orderId, employeeId);
+
+  if (meetingService.hasActiveMeeting(order.meetings)) {
+    const err = new Error('A meeting is already scheduled. Reschedule or cancel it before booking another.');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const employee = await User.findById(employeeId).select('name email');
+  const meeting = await meetingService.createMeeting({
+    ...meetingEventArgs(order, note),
+    when,
+    durationMins: duration,
+    note,
+    scheduledByName: employee?.name || '',
+    attendees: [order.clientId?.email, employee?.email],
+  });
+
+  order.meetings.push(meeting);
+  await order.save();
+  const saved = order.meetings[order.meetings.length - 1];
+
+  const orderNum = orderNumFor(order);
+  const whenStr = meetingService.fmtWhen(when);
+  meetingService.sendMeetingEmail({
+    to: order.clientId?.email,
+    kind: 'scheduled',
+    clientName: order.clientId?.name,
+    ticketId: orderNum,
+    refLabel: 'Order',
+    subject: orderServiceName(order),
+    whenStr,
+    durationMins: duration,
+    meetingLink: saved.meetingLink,
+    htmlLink: saved.htmlLink,
+    note,
+  });
+  notify(order.clientId, order._id, orderNum, 'status', 'Meeting Scheduled', `A meeting on order ${orderNum} is set for ${whenStr}. A calendar invite with the video link has been emailed to you.`, 'orderMeeting', { email: false });
+
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
+};
+
+const rescheduleOrderMeeting = async (orderId, employeeId, meetingId, { scheduledAt, durationMins, note }) => {
+  const { when, duration } = parseMeetingTime(scheduledAt, durationMins);
+  const order = await loadOrderForMeeting(orderId, employeeId);
+
+  const meeting = order.meetings.id(meetingId);
+  if (!meeting || meeting.status === 'cancelled') {
+    const err = new Error('Meeting not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const employee = await User.findById(employeeId).select('email');
+  await meetingService.rescheduleMeeting(meeting, {
+    ...meetingEventArgs(order, note),
+    when,
+    durationMins: duration,
+    note,
+    attendees: [order.clientId?.email, employee?.email],
+  });
+  await order.save();
+
+  const orderNum = orderNumFor(order);
+  const whenStr = meetingService.fmtWhen(when);
+  meetingService.sendMeetingEmail({
+    to: order.clientId?.email,
+    kind: 'updated',
+    clientName: order.clientId?.name,
+    ticketId: orderNum,
+    refLabel: 'Order',
+    subject: orderServiceName(order),
+    whenStr,
+    durationMins: duration,
+    meetingLink: meeting.meetingLink,
+    htmlLink: meeting.htmlLink,
+    note,
+  });
+  notify(order.clientId, order._id, orderNum, 'status', 'Meeting Rescheduled', `Your meeting on order ${orderNum} has been moved to ${whenStr}. An updated calendar invite has been emailed to you.`, 'orderMeeting', { email: false });
+
+  const populated = await order.populate(POPULATE_ORDER);
+  broadcastOrder(populated);
+  return populated;
+};
+
+const cancelOrderMeeting = async (orderId, employeeId, meetingId) => {
+  const order = await loadOrderForMeeting(orderId, employeeId);
+
+  const meeting = order.meetings.id(meetingId);
+  if (!meeting || meeting.status === 'cancelled') {
+    const err = new Error('Meeting not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  await meetingService.cancelMeeting(meeting);
+  await order.save();
+
+  const orderNum = orderNumFor(order);
+  meetingService.sendMeetingEmail({
+    to: order.clientId?.email,
+    kind: 'cancelled',
+    clientName: order.clientId?.name,
+    ticketId: orderNum,
+    refLabel: 'Order',
+    subject: orderServiceName(order),
+  });
+  notify(order.clientId, order._id, orderNum, 'status', 'Meeting Cancelled', `Your meeting on order ${orderNum} has been cancelled.`, 'orderMeeting', { email: false });
 
   const populated = await order.populate(POPULATE_ORDER);
   broadcastOrder(populated);
@@ -835,4 +1062,7 @@ module.exports = {
   getEmployeeOrders,
   adminSetDeliveryDate,
   adminResetOrderStatus,
+  scheduleOrderMeeting,
+  rescheduleOrderMeeting,
+  cancelOrderMeeting,
 };

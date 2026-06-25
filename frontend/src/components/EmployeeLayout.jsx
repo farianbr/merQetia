@@ -5,6 +5,7 @@ import { NotificationProvider, useNotifications } from '../context/NotificationC
 import CommandPalette from './CommandPalette';
 import BrandLogo from './BrandLogo';
 import { getMyAssignments } from '../api/orders';
+import { getSupportRequests } from '../api/support';
 import {
   LuLayoutDashboard, LuClipboardCheck, LuBell, LuSettings, LuLogOut, LuUser,
   LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu, LuLifeBuoy,
@@ -15,6 +16,12 @@ function mapOrders(r) {
     _id: o._id,
     shortId: o._id.slice(-6).toUpperCase(),
     label: (o.services || []).map((s) => s.name).join(', ') || '—',
+  }));
+}
+
+function mapTickets(r) {
+  return (r.data.requests || []).map((t) => ({
+    _id: t._id, ticketId: t.ticketId, subject: t.subject, clientName: t.clientName,
   }));
 }
 
@@ -96,6 +103,7 @@ function EmployeeLayoutInner({ children }) {
   const handleNotifClick = (notif) => {
     markRead(notif._id);
     setBellOpen(false);
+    if (notif.link) return navigate(notif.link);
     if (notif.type === 'message') {
       navigate(`/employee?openUpdate=${notif.orderId}`);
     } else {
@@ -275,6 +283,8 @@ function EmployeeLayoutInner({ children }) {
           searchItems={SEARCH_ITEMS}
           onOrderSearch={(id) => navigate('/employee/orders', { state: { orderId: id } })}
           fetchSuggestions={() => getMyAssignments().then(mapOrders)}
+          fetchTicketSuggestions={() => getSupportRequests().then(mapTickets)}
+          onTicketSearch={(id) => navigate(`/employee/support?ticket=${id}`)}
           onClose={() => setSearchOpen(false)}
         />
       )}

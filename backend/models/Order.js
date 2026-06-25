@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const meetingSchema = require('./meetingSchema');
 
 const messageSchema = new mongoose.Schema(
   {
@@ -86,6 +87,12 @@ const orderSchema = new mongoose.Schema(
     },
     updates: {
       type: [messageSchema],
+      default: [],
+    },
+    // Video meetings the assigned employee schedules with the client. A new one
+    // can only be booked while none is active; past/cancelled ones stay for history.
+    meetings: {
+      type: [meetingSchema],
       default: [],
     },
     statusHistory: {

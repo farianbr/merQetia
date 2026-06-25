@@ -19,6 +19,7 @@ import ClientInvoices from './pages/client/Invoices';
 import ClientSettings from './pages/client/Settings';
 import ClientNotifications from './pages/client/Notifications';
 import ClientProfile from './pages/client/Profile';
+import ClientEmployeeProfile from './pages/client/EmployeeProfile';
 import ClientHelpCenter from './pages/client/HelpCenter';
 
 // Admin
@@ -43,6 +44,7 @@ import EmployeeOrders from './pages/employee/Orders';
 import EmployeeSettings from './pages/employee/Settings';
 import EmployeeNotifications from './pages/employee/Notifications';
 import EmployeeProfile from './pages/employee/Profile';
+import EmployeeClientProfile from './pages/employee/ClientProfile';
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -68,6 +70,7 @@ function AppRoutes() {
       <Route path="/invoices"       element={<ProtectedRoute roles={['client']}><ClientLayout><ClientInvoices /></ClientLayout></ProtectedRoute>} />
       <Route path="/settings"       element={<ProtectedRoute roles={['client']}><ClientLayout><ClientSettings /></ClientLayout></ProtectedRoute>} />
       <Route path="/profile"         element={<ProtectedRoute roles={['client']}><ClientLayout><ClientProfile /></ClientLayout></ProtectedRoute>} />
+      <Route path="/team/:id"        element={<ProtectedRoute roles={['client']}><ClientLayout><ClientEmployeeProfile /></ClientLayout></ProtectedRoute>} />
       <Route path="/notifications"  element={<ProtectedRoute roles={['client']}><ClientLayout><ClientNotifications /></ClientLayout></ProtectedRoute>} />
       <Route path="/help"           element={<ProtectedRoute roles={['client']}><ClientLayout><ClientHelpCenter /></ClientLayout></ProtectedRoute>} />
 
@@ -90,6 +93,7 @@ function AppRoutes() {
       {/* ── Employee ── */}
       <Route path="/employee"                element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeDashboard /></EmployeeLayout></ProtectedRoute>} />
       <Route path="/employee/orders"         element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeOrders /></EmployeeLayout></ProtectedRoute>} />
+      <Route path="/employee/clients/:id"    element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeClientProfile /></EmployeeLayout></ProtectedRoute>} />
       <Route path="/employee/notifications"   element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeNotifications /></EmployeeLayout></ProtectedRoute>} />
 
       <Route path="/employee/settings"       element={<ProtectedRoute roles={['employee']}><EmployeeLayout><EmployeeSettings /></EmployeeLayout></ProtectedRoute>} />

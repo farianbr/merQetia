@@ -6,6 +6,7 @@ import CommandPalette from './CommandPalette';
 import BrandLogo from './BrandLogo';
 import { getOrders } from '../api/orders';
 import { getEmployees, getClients } from '../api/admin';
+import { getSupportRequests } from '../api/support';
 import {
   LuLayoutDashboard, LuShoppingBag, LuWrench, LuFileText,
   LuChartBar, LuDollarSign, LuUsers, LuUserCheck, LuSettings, LuLogOut, LuBell,
@@ -25,6 +26,12 @@ async function fetchPeople() {
   const emps = (empRes.data.employees || []).map((e) => ({ ...e, role: 'employee' }));
   const cls = (clientRes.data.clients || []).map((c) => ({ ...c, role: 'client' }));
   return [...emps, ...cls];
+}
+
+function mapTickets(r) {
+  return (r.data.requests || []).map((t) => ({
+    _id: t._id, ticketId: t.ticketId, subject: t.subject, clientName: t.clientName,
+  }));
 }
 
 const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
@@ -116,6 +123,7 @@ function AdminLayoutInner({ children }) {
   const handleNotifClick = (notif) => {
     markRead(notif._id);
     setBellOpen(false);
+    if (notif.link) return navigate(notif.link);
     if (notif.type === 'message') {
       navigate(`/admin?openUpdate=${notif.orderId}`);
     } else {
@@ -296,6 +304,8 @@ function AdminLayoutInner({ children }) {
           onOrderSearch={(id) => navigate(`/admin/orders/${id}`)}
           fetchSuggestions={() => getOrders().then(mapOrders)}
           fetchPeopleSuggestions={fetchPeople}
+          fetchTicketSuggestions={() => getSupportRequests().then(mapTickets)}
+          onTicketSearch={(id) => navigate(`/admin/support?ticket=${id}`)}
           onClose={() => setSearchOpen(false)}
         />
       )}

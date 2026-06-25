@@ -8,14 +8,26 @@ const notificationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // Order notifications set orderId; support notifications set supportId.
     orderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Order',
-      required: true,
+      default: null,
+    },
+    supportId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SupportRequest',
+      default: null,
+    },
+    // Explicit navigation target (used by support notifications); order
+    // notifications fall back to orderId-based routing on the client.
+    link: {
+      type: String,
+      default: '',
     },
     type: {
       type: String,
-      enum: ['status', 'message'],
+      enum: ['status', 'message', 'support'],
       required: true,
     },
     typeLabel: {

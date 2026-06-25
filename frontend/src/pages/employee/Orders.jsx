@@ -1,11 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { getMyAssignments, acceptOrder, rejectOrder, submitForReview, sendMessage } from '../../api/orders';
+import {
+  getMyAssignments, acceptOrder, rejectOrder, submitForReview, sendMessage,
+  scheduleOrderMeeting, rescheduleOrderMeeting, cancelOrderMeeting,
+} from '../../api/orders';
 import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import ConversationEvent from '../../components/ConversationEvent';
-import { LuClipboard, LuFile, LuPaperclip, LuImage, LuDownload } from 'react-icons/lu';
+import MeetingMessage from '../../components/MeetingMessage';
+import MeetingScheduleModal from '../../components/MeetingScheduleModal';
+import MeetingCancelModal from '../../components/MeetingCancelModal';
+import FullscreenButton from '../../components/FullscreenButton';
+import { useNow, activeMeeting, canScheduleMeeting, meetingHeaderLabel } from '../../utils/meeting';
+import { LuClipboard, LuFile, LuPaperclip, LuImage, LuDownload, LuVideo, LuCalendarDays } from 'react-icons/lu';
 
 function fmtTime(iso) {
   if (!iso) return '';
@@ -154,6 +162,13 @@ export default function EmployeeOrders() {
   const [pendingOrderId, setPendingOrderId] = useState(null);
   const today = new Date().toISOString().split('T')[0];
 
+  // Meetings
+  const [scheduleModal, setScheduleModal] = useState(null); // { meeting } | null
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [fsConvo, setFsConvo] = useState(false);
+  const now = useNow();
+
   const fetchOrders = useCallback(async () => {
     try {
       const r = await getMyAssignments();
@@ -212,6 +227,9 @@ export default function EmployeeOrders() {
   useEffect(() => {
     if (activeOrder) chatBottomRef.current?.scrollIntoView({ behavior: 'instant' });
   }, [activeOrder?._id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Exit full screen when switching to a different order.
+  useEffect(() => { setFsConvo(false); }, [activeOrder?._id]);
 
   const handleAccept = async () => {
     if (!deliveryDate) { setAcceptError('Please pick a delivery date'); return; }
@@ -281,6 +299,53 @@ export default function EmployeeOrders() {
 
   const removeAttachFile = (idx) =>
     setAttachFiles((prev) => prev.filter((_, i) => i !== idx));
+
+  // Reflect a returned order everywhere it's shown.
+  const patchOrder = (order) => {
+    if (!order?._id) return;
+    setActiveOrder((cur) => (cur && cur._id === order._id ? order : cur));
+    setOrders((prev) => prev.map((o) => (o._id === order._id ? order : o)));
+  };
+
+  // Schedule / reschedule run through the modal's onSubmit and return the order.
+  const submitSchedule = async (payload) => {
+    const meeting = scheduleModal?.meeting;
+    const r = meeting
+      ? await rescheduleOrderMeeting(activeOrder._id, meeting._id, payload)
+      : await scheduleOrderMeeting(activeOrder._id, payload);
+    return r.data.order;
+  };
+
+  const handleCancelMeeting = async () => {
+    if (!cancelTarget || !activeOrder) return;
+    setCancelling(true);
+    try {
+      const r = await cancelOrderMeeting(activeOrder._id, cancelTarget._id);
+      patchOrder(r.data.order);
+      setCancelTarget(null);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to cancel the meeting');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  // Conversation thread: messages + meeting events, in chronological order.
+  const thread = useMemo(() => {
+    if (!activeOrder) return [];
+    const items = [
+      ...(activeOrder.messages || []).map((m) => ({ ...m, kind: m.kind || 'message', _sort: m.createdAt })),
+      ...(activeOrder.meetings || []).map((mt) => ({
+        _id: `meeting-${mt._id}`, kind: 'meeting', meeting: mt,
+        _sort: mt.bookedAt || mt.scheduledAt || mt.createdAt,
+      })),
+    ];
+    return items.sort((a, b) => new Date(a._sort) - new Date(b._sort));
+  }, [activeOrder]);
+
+  const liveMeeting = activeMeeting(activeOrder?.meetings, now);
+  const canSchedule = canScheduleMeeting(activeOrder?.meetings, now);
+  const convoActive = activeOrder && (activeOrder.status === 'accepted' || activeOrder.status === 'review');
 
   const newRequests = orders.filter((o) => o.status === 'assigned');
   const otherOrders = orders.filter((o) => o.status !== 'assigned');
@@ -370,6 +435,15 @@ export default function EmployeeOrders() {
                     Awaiting client confirmation
                   </span>
                 )}
+                {convoActive && canSchedule && (
+                  <button
+                    className="btn-secondary"
+                    style={{ fontSize: '.8rem', padding: '.35rem .75rem', display: 'inline-flex', alignItems: 'center', gap: '.35rem' }}
+                    onClick={() => setScheduleModal({ meeting: null })}
+                  >
+                    <LuVideo size={14} /> Schedule meeting
+                  </button>
+                )}
                 <button
                   className={`btn-secondary${showAttachments ? ' btn-secondary--active' : ''}`}
                   style={{ fontSize: '.8rem', padding: '.35rem .75rem' }}
@@ -400,8 +474,11 @@ export default function EmployeeOrders() {
                 )}
 
                 {/* Conversation */}
-                <div className="co-conversation">
-              <h3 className="co-conv-title">Conversation</h3>
+                <div className={`co-conversation ${fsConvo ? 'conv-fs' : ''}`}>
+              <div className="co-conv-top">
+                <h3 className="co-conv-title">Conversation</h3>
+                {activeOrder.status !== 'assigned' && <FullscreenButton active={fsConvo} onToggle={setFsConvo} />}
+              </div>
 
               {activeOrder.status === 'assigned' ? (
                 <p className="co-conv-placeholder">
@@ -409,11 +486,34 @@ export default function EmployeeOrders() {
                 </p>
               ) : (
                 <>
+                  {liveMeeting && (
+                    <div className="cv-head-meeting">
+                      <LuVideo size={14} />
+                      <span>{meetingHeaderLabel(liveMeeting, now)}</span>
+                      {liveMeeting.meetingLink && (
+                        <a href={liveMeeting.meetingLink} target="_blank" rel="noreferrer" className="cv-head-join">Join</a>
+                      )}
+                    </div>
+                  )}
                   <div className="chat-window co-chat-window">
-                    {(!activeOrder.messages || activeOrder.messages.length === 0) && (
+                    {thread.length === 0 && (
                       <p className="chat-empty">No messages yet. Start the conversation!</p>
                     )}
-                    {activeOrder.messages?.map((msg, i) => {
+                    {thread.map((msg, i) => {
+                      if (msg.kind === 'meeting') {
+                        return (
+                          <MeetingMessage
+                            key={msg._id}
+                            meeting={msg.meeting}
+                            now={now}
+                            canManage={convoActive}
+                            showCalendarLink
+                            onReschedule={() => setScheduleModal({ meeting: msg.meeting })}
+                            onCancel={() => setCancelTarget(msg.meeting)}
+                            cancelling={cancelling && cancelTarget?._id === msg.meeting._id}
+                          />
+                        );
+                      }
                       if (msg.kind === 'change-request' || msg.kind === 'review-submitted') {
                         return (
                           <ConversationEvent
@@ -582,6 +682,26 @@ export default function EmployeeOrders() {
           src={lightbox.src}
           name={lightbox.name}
           onClose={() => setLightbox(null)}
+        />
+      )}
+
+      {scheduleModal && activeOrder && (
+        <MeetingScheduleModal
+          existing={scheduleModal.meeting}
+          inviteeLabel={activeOrder.clientId?.name || 'the client'}
+          onSubmit={submitSchedule}
+          onScheduled={patchOrder}
+          onClose={() => setScheduleModal(null)}
+        />
+      )}
+
+      {cancelTarget && activeOrder && (
+        <MeetingCancelModal
+          meeting={cancelTarget}
+          cancelling={cancelling}
+          onClose={() => setCancelTarget(null)}
+          onReschedule={() => { const mt = cancelTarget; setCancelTarget(null); setScheduleModal({ meeting: mt }); }}
+          onConfirm={handleCancelMeeting}
         />
       )}
 

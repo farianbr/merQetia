@@ -1,6 +1,12 @@
 const MONGO_ID = /^[a-f\d]{24}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Bounds on questionnaire answers. These feed the AI summary, so they're our
+// first line of defence against oversized / abusive payloads.
+const MAX_ANSWER_LEN = 1000;          // per individual answer
+const MAX_ANSWERS_PER_SERVICE = 30;   // distinct questions per service
+const MAX_TOTAL_ANSWER_CHARS = 8000;  // across the whole order
+
 const fail = (res, message) =>
   res.status(422).json({ success: false, message });
 
@@ -30,11 +36,44 @@ exports.validateService = (req, res, next) => {
 };
 
 exports.validateOrder = (req, res, next) => {
-  const { services } = req.body;
+  const { services, answers } = req.body;
   if (!Array.isArray(services) || services.length === 0)
     return fail(res, 'At least one service is required');
   if (!services.every((id) => MONGO_ID.test(id)))
     return fail(res, 'Each service must be a valid ID');
+
+  // Answers are optional, but when present they're tightly bounded — they get
+  // assembled into an AI prompt, so we cap size and reject unexpected shapes.
+  if (answers !== undefined && answers !== null) {
+    if (typeof answers !== 'object' || Array.isArray(answers))
+      return fail(res, 'Answers must be an object keyed by service ID');
+
+    const serviceSet = new Set(services);
+    let totalChars = 0;
+
+    for (const [serviceId, serviceAnswers] of Object.entries(answers)) {
+      if (!MONGO_ID.test(serviceId) || !serviceSet.has(serviceId))
+        return fail(res, 'Answers reference an unknown service');
+      if (typeof serviceAnswers !== 'object' || serviceAnswers === null || Array.isArray(serviceAnswers))
+        return fail(res, 'Each service\'s answers must be an object');
+
+      const entries = Object.entries(serviceAnswers);
+      if (entries.length > MAX_ANSWERS_PER_SERVICE)
+        return fail(res, `A service has too many answers (max ${MAX_ANSWERS_PER_SERVICE})`);
+
+      for (const [, value] of entries) {
+        if (typeof value !== 'string')
+          return fail(res, 'Each answer must be text');
+        if (value.length > MAX_ANSWER_LEN)
+          return fail(res, `An answer is too long (max ${MAX_ANSWER_LEN} characters)`);
+        totalChars += value.length;
+      }
+    }
+
+    if (totalChars > MAX_TOTAL_ANSWER_CHARS)
+      return fail(res, `Answers are too long overall (max ${MAX_TOTAL_ANSWER_CHARS} characters)`);
+  }
+
   next();
 };
 

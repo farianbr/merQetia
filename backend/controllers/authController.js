@@ -57,11 +57,26 @@ const getMe = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
   try {
-    const { name, email, currentPassword, newPassword, phone, address } = req.body;
+    const { name, email, currentPassword, newPassword, phone, address, notificationPrefs } = req.body;
     const user = await User.findById(req.user.id).select('+password');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     if (name) user.name = name.trim().slice(0, 100);
+
+    if (notificationPrefs && typeof notificationPrefs === 'object') {
+      ['email', 'inApp'].forEach((channel) => {
+        const incoming = notificationPrefs[channel];
+        if (incoming && typeof incoming === 'object') {
+          // Only accept known notification keys (defined on the schema).
+          User.NOTIFICATION_KEYS.forEach((key) => {
+            if (typeof incoming[key] === 'boolean') {
+              user.notificationPrefs[channel][key] = incoming[key];
+            }
+          });
+        }
+      });
+      user.markModified('notificationPrefs');
+    }
 
     if (phone !== undefined) user.phone = String(phone).trim().slice(0, 30);
 

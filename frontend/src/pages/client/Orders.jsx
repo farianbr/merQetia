@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getOrders, sendMessage, confirmOrder, requestChanges } from '../../api/orders';
 import { useSocket } from '../../context/SocketContext';
 import { Link, useLocation } from 'react-router-dom';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import ConversationEvent from '../../components/ConversationEvent';
-import { LuClipboard, LuFile, LuPaperclip, LuImage, LuDownload } from 'react-icons/lu';
+import MeetingMessage from '../../components/MeetingMessage';
+import FullscreenButton from '../../components/FullscreenButton';
+import { useNow, activeMeeting, meetingHeaderLabel } from '../../utils/meeting';
+import { LuClipboard, LuFile, LuPaperclip, LuImage, LuDownload, LuVideo } from 'react-icons/lu';
 
 function fmtTime(iso) {
   if (!iso) return '';
@@ -181,6 +184,24 @@ export default function ClientOrders() {
   const removeAttachFile = (idx) =>
     setAttachFiles((prev) => prev.filter((_, i) => i !== idx));
 
+  const now = useNow();
+  const liveMeeting = activeMeeting(activeOrder?.meetings, now);
+  const [fsConvo, setFsConvo] = useState(false);
+  useEffect(() => { setFsConvo(false); }, [activeOrder?._id]);
+
+  // Conversation thread: messages + meeting events, chronological.
+  const thread = useMemo(() => {
+    if (!activeOrder) return [];
+    const items = [
+      ...(activeOrder.messages || []).map((m) => ({ ...m, kind: m.kind || 'message', _sort: m.createdAt })),
+      ...(activeOrder.meetings || []).map((mt) => ({
+        _id: `meeting-${mt._id}`, kind: 'meeting', meeting: mt,
+        _sort: mt.bookedAt || mt.scheduledAt || mt.createdAt,
+      })),
+    ];
+    return items.sort((a, b) => new Date(a._sort) - new Date(b._sort));
+  }, [activeOrder]);
+
   return (
     <div className="co-page">
       <div className="co-page-header">
@@ -304,8 +325,13 @@ export default function ClientOrders() {
             )}
 
             {/* Conversation */}
-            <div className="co-conversation">
-              <h3 className="co-conv-title">Conversation</h3>
+            <div className={`co-conversation ${fsConvo ? 'conv-fs' : ''}`}>
+              <div className="co-conv-top">
+                <h3 className="co-conv-title">Conversation</h3>
+                {!(activeOrder.status === 'placed' || activeOrder.status === 'assigned') && (
+                  <FullscreenButton active={fsConvo} onToggle={setFsConvo} />
+                )}
+              </div>
 
               {(activeOrder.status === 'placed' || activeOrder.status === 'assigned') ? (
                 <p className="co-conv-placeholder">
@@ -313,11 +339,23 @@ export default function ClientOrders() {
                 </p>
               ) : (
                 <>
+                  {liveMeeting && (
+                    <div className="cv-head-meeting">
+                      <LuVideo size={14} />
+                      <span>{meetingHeaderLabel(liveMeeting, now)}</span>
+                      {liveMeeting.meetingLink && (
+                        <a href={liveMeeting.meetingLink} target="_blank" rel="noreferrer" className="cv-head-join">Join</a>
+                      )}
+                    </div>
+                  )}
                   <div className="chat-window co-chat-window">
-                    {(!activeOrder.messages || activeOrder.messages.length === 0) && (
+                    {thread.length === 0 && (
                       <p className="chat-empty">No messages yet. Say hello!</p>
                     )}
-                    {activeOrder.messages?.map((msg, i) => {
+                    {thread.map((msg, i) => {
+                      if (msg.kind === 'meeting') {
+                        return <MeetingMessage key={msg._id} meeting={msg.meeting} now={now} />;
+                      }
                       if (msg.kind === 'change-request' || msg.kind === 'review-submitted') {
                         return (
                           <ConversationEvent

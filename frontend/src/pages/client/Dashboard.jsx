@@ -95,7 +95,7 @@ function OrderDetail({ order, onClose }) {
       </div>
 
       {/* Timeline */}
-      <OrderTimeline status={order.status} />
+      <OrderTimeline status={order.status} deliveryDate={order.deliveryDate} />
 
       {/* Meta strip */}
       <div className="pw-meta-strip">
@@ -116,7 +116,15 @@ function OrderDetail({ order, onClose }) {
         {order.assignedEmployee?.name && (
           <div className="pw-meta-item">
             <span className="pw-meta-label">Assigned to</span>
-            <span className="pw-meta-value">{order.assignedEmployee.name}</span>
+            <span className="pw-meta-value">
+              {order.assignedEmployee._id ? (
+                <Link to={`/team/${order.assignedEmployee._id}`} className="mq-name-link">
+                  {order.assignedEmployee.name}
+                </Link>
+              ) : (
+                order.assignedEmployee.name
+              )}
+            </span>
           </div>
         )}
       </div>

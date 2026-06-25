@@ -482,7 +482,16 @@ function EmpOrderGroup({
                           case 'client':
                             return (
                               <td key={colKey} className="mq-td">
-                                {order.clientId?.name || '—'}
+                                {order.clientId?._id ? (
+                                  <Link
+                                    to={`/employee/clients/${order.clientId._id}`}
+                                    className="mq-name-link"
+                                  >
+                                    {order.clientId.name || '—'}
+                                  </Link>
+                                ) : (
+                                  order.clientId?.name || '—'
+                                )}
                               </td>
                             );
                           case 'status':

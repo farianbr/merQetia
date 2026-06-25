@@ -135,4 +135,38 @@ const updateDepartments = async (req, res, next) => {
   }
 };
 
-module.exports = { invite, register, getEmployees, getEmployeeById, updateDepartments };
+/**
+ * GET /api/employees/:id/public
+ * Client only — a limited employee profile, scoped to the orders the requesting
+ * client owns that are assigned to this employee. Powers clickable employee
+ * names on the client dashboard. Access is denied unless the client shares at
+ * least one order with the employee; no contact email is exposed.
+ */
+const getEmployeeForClient = async (req, res, next) => {
+  try {
+    const User = require('../models/User');
+    const Order = require('../models/Order');
+
+    const orders = await Order.find({ assignedEmployee: req.params.id, clientId: req.user.id })
+      .populate('services', 'name')
+      .select('_id status createdAt totalPrice deliveryDate services')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (orders.length === 0) {
+      return res.status(403).json({ success: false, message: 'You can only view employees working on your orders.' });
+    }
+
+    const employee = await User.findOne({ _id: req.params.id, role: 'employee' })
+      .select('name departments avatar createdAt')
+      .lean();
+
+    if (!employee) return res.status(404).json({ success: false, message: 'Employee not found' });
+
+    res.status(200).json({ success: true, employee, orders });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { invite, register, getEmployees, getEmployeeById, updateDepartments, getEmployeeForClient };

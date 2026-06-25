@@ -16,6 +16,9 @@ const {
   getEmployeeOrders,
   adminSetDeliveryDate,
   adminResetOrderStatus,
+  scheduleOrderMeeting,
+  rescheduleOrderMeeting,
+  cancelOrderMeeting,
 } = require('../services/orderService');
 
 /**
@@ -300,6 +303,45 @@ const getParticipants = async (req, res, next) => {
 };
 
 /**
+ * POST /api/orders/:id/meetings
+ * Assigned employee — schedule a new video meeting with the client.
+ */
+const scheduleMeeting = async (req, res, next) => {
+  try {
+    const order = await scheduleOrderMeeting(req.params.id, req.user.id, req.body);
+    res.status(201).json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * PATCH /api/orders/:id/meetings/:meetingId
+ * Assigned employee — reschedule an existing meeting.
+ */
+const rescheduleMeeting = async (req, res, next) => {
+  try {
+    const order = await rescheduleOrderMeeting(req.params.id, req.user.id, req.params.meetingId, req.body);
+    res.status(200).json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/orders/:id/meetings/:meetingId
+ * Assigned employee — cancel a scheduled meeting.
+ */
+const cancelMeeting = async (req, res, next) => {
+  try {
+    const order = await cancelOrderMeeting(req.params.id, req.user.id, req.params.meetingId);
+    res.status(200).json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * PATCH /api/orders/:id/delivery-date
  * Admin only — override the delivery date on an accepted order
  */
@@ -329,5 +371,5 @@ const resetStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus };
+module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus, scheduleMeeting, rescheduleMeeting, cancelMeeting };
 

@@ -34,11 +34,45 @@ const brandRule = `<tr><td style="height:5px;line-height:5px;font-size:0;backgro
 /** Shared head + outer shell open/close so all emails stay consistent. */
 const shellHead = `<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />`;
 
+const CONTACT_EMAIL = process.env.SUPPORT_EMAIL || 'info@merqetia.nl';
+const CONTACT_PHONE = process.env.CONTACT_PHONE || '';
+
 const footer = `
   <tr><td style="background:${BRAND.offWhite};padding:22px 40px;border-top:1px solid ${BRAND.hair};text-align:center;">
     <p style="margin:0;font-size:12px;color:${BRAND.muted};">© ${new Date().getFullYear()} merQetia — All rights reserved.</p>
-    <p style="margin:6px 0 0;font-size:11px;color:${BRAND.muted};">Lingestraat 11, 1316 CN Almere · www.merQetia.nl</p>
+    <p style="margin:6px 0 0;font-size:11px;color:${BRAND.muted};">Lingestraat 11, 1316 CN Almere · <a href="https://www.merqetia.nl" style="color:${BRAND.accent};text-decoration:none;">www.merQetia.nl</a></p>
+    <p style="margin:4px 0 0;font-size:11px;color:${BRAND.muted};">
+      <a href="mailto:${CONTACT_EMAIL}" style="color:${BRAND.accent};text-decoration:none;">${CONTACT_EMAIL}</a>${CONTACT_PHONE ? ` · ${CONTACT_PHONE}` : ''}
+    </p>
   </td></tr>`;
+
+/**
+ * Shared branded shell. Wraps body content (a string of <tr>… table rows or a
+ * single <tr><td>…</td></tr>) in the standard navy header + brand rule + footer
+ * card so every email looks identical. `bodyInner` should be the inner HTML of
+ * the white body cell (the `<td style="padding:40px;">` contents).
+ */
+const shell = (bodyInner) => `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>${shellHead}</head>
+<body style="margin:0;padding:0;background:${BRAND.offWhite};font-family:${FONT};color:${BRAND.ink};">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.offWhite};padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(8,48,61,0.08);">
+        <tr><td style="background:${BRAND.navy};padding:32px 40px;">${headerWordmark}</td></tr>
+        ${brandRule}
+        <tr><td style="padding:40px;">${bodyInner}</td></tr>
+        ${footer}
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+const heading = (text) =>
+  `<h2 style="margin:0 0 8px;font-size:23px;color:${BRAND.navy};font-family:${FONT_DISPLAY};letter-spacing:-.01em;">${text}</h2>`;
+const cta = (url, label) =>
+  `<a href="${url}" style="display:inline-block;background:${BRAND.accent};color:#fff;font-size:14px;font-weight:700;padding:14px 28px;border-radius:10px;text-decoration:none;">${label}</a>`;
 
 /**
  * HTML email template for order confirmation.
@@ -215,4 +249,101 @@ const orderAssignedEmployeeHTML = ({ employeeName, clientName, services, orderNu
 </html>`;
 };
 
-module.exports = { orderConfirmationHTML, newOrderAdminHTML, orderAssignedEmployeeHTML };
+/**
+ * Generic notification email — used for message / mention / update alerts that
+ * the recipient has opted into receiving by email. Keeps the brand shell but
+ * stays lightweight (heading + message + optional CTA).
+ */
+const genericNotificationHTML = ({ recipientName, heading, message, orderNum, ctaUrl, ctaLabel }) => {
+  const greeting = recipientName ? `Hi ${recipientName},` : 'Hi,';
+  const orderRow = orderNum
+    ? `<table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.offWhite};border-radius:12px;margin-bottom:24px;">
+         <tr><td style="padding:14px 20px;font-size:13px;color:${BRAND.muted};">Order</td>
+             <td style="padding:14px 20px;font-size:13px;font-weight:600;color:${BRAND.accent};text-align:right;">${orderNum}</td></tr>
+       </table>`
+    : '';
+  const cta = ctaUrl
+    ? `<a href="${ctaUrl}" style="display:inline-block;background:${BRAND.accent};color:#fff;font-size:14px;font-weight:700;padding:14px 28px;border-radius:10px;text-decoration:none;">${ctaLabel || 'View →'}</a>`
+    : '';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>${shellHead}</head>
+<body style="margin:0;padding:0;background:${BRAND.offWhite};font-family:${FONT};color:${BRAND.ink};">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.offWhite};padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 6px 20px rgba(8,48,61,0.08);">
+        <tr><td style="background:${BRAND.navy};padding:32px 40px;">
+          ${headerWordmark}
+        </td></tr>
+        ${brandRule}
+        <tr><td style="padding:40px;">
+          <h2 style="margin:0 0 8px;font-size:23px;color:${BRAND.navy};font-family:${FONT_DISPLAY};letter-spacing:-.01em;">${heading}</h2>
+          <p style="margin:0 0 20px;color:${BRAND.muted};font-size:15px;">${greeting}</p>
+          <p style="margin:0 0 24px;color:${BRAND.ink};font-size:15px;line-height:1.6;">${message}</p>
+          ${orderRow}
+          ${cta}
+          <p style="color:${BRAND.muted};font-size:12px;margin-top:28px;">
+            You're receiving this because you opted into email notifications. You can change this anytime in your account settings.
+          </p>
+        </td></tr>
+        ${footer}
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+};
+
+/**
+ * Branded employee invitation email.
+ */
+const employeeInviteHTML = ({ inviteLink }) => shell(`
+  ${heading('You\'re invited to merQetia')}
+  <p style="margin:0 0 20px;color:${BRAND.muted};font-size:15px;">An admin has invited you to join <strong>merQetia</strong> as a team member. Click below to complete your registration — the link expires in 48 hours.</p>
+  ${cta(inviteLink, 'Accept Invitation →')}
+  <p style="color:${BRAND.muted};font-size:12px;margin-top:28px;">If you weren't expecting this invitation, you can safely ignore this email.</p>
+`);
+
+/**
+ * Branded meeting email — scheduled, rescheduled, or cancelled. Carries the
+ * Google Meet join link and a link to the calendar event when available.
+ * @param {'scheduled'|'updated'|'cancelled'} kind
+ */
+const meetingHTML = ({ kind = 'scheduled', clientName, ticketId, refLabel = 'Ticket', subject, whenStr, durationMins, meetingLink, htmlLink, note }) => {
+  const copy = {
+    scheduled: { h: 'Your meeting is scheduled', lead: 'We\'ve scheduled a meeting with you. The details are below — a calendar invite has also been sent to your email.' },
+    updated:   { h: 'Your meeting was rescheduled', lead: 'Your meeting has been moved to a new time. The updated details are below.' },
+    cancelled: { h: 'Your meeting was cancelled', lead: 'Your scheduled meeting has been cancelled. Reach out any time to arrange a new one.' },
+  }[kind] || {};
+
+  const detailRow = (label, value) => `
+    <tr><td style="padding:14px 20px;font-size:13px;color:${BRAND.muted};border-top:1px solid ${BRAND.hair};">${label}</td>
+        <td style="padding:14px 20px;font-size:13px;font-weight:600;color:${BRAND.ink};text-align:right;border-top:1px solid ${BRAND.hair};">${value}</td></tr>`;
+
+  const detailTable = kind === 'cancelled' ? '' : `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.offWhite};border-radius:12px;margin:0 0 24px;">
+      <tr><td style="padding:14px 20px;font-size:13px;color:${BRAND.muted};">${refLabel}</td>
+          <td style="padding:14px 20px;font-size:13px;font-weight:600;color:${BRAND.accent};text-align:right;">${ticketId}</td></tr>
+      ${detailRow('Subject', subject || '—')}
+      ${detailRow('When', whenStr)}
+      ${detailRow('Duration', `${durationMins} min`)}
+    </table>`;
+
+  return shell(`
+    ${heading(copy.h)}
+    <p style="margin:0 0 20px;color:${BRAND.muted};font-size:15px;">Hi ${clientName || 'there'}, ${copy.lead}</p>
+    ${detailTable}
+    ${note ? `<p style="margin:0 0 24px;color:${BRAND.ink};font-size:14px;line-height:1.6;"><strong>Notes:</strong> ${note}</p>` : ''}
+    ${kind !== 'cancelled' && meetingLink ? cta(meetingLink, 'Join Meeting →') : ''}
+    ${kind !== 'cancelled' && htmlLink ? `<p style="margin:16px 0 0;font-size:13px;"><a href="${htmlLink}" style="color:${BRAND.accent};text-decoration:none;">View in calendar</a></p>` : ''}
+  `);
+};
+
+module.exports = {
+  orderConfirmationHTML,
+  newOrderAdminHTML,
+  orderAssignedEmployeeHTML,
+  genericNotificationHTML,
+  employeeInviteHTML,
+  meetingHTML,
+};

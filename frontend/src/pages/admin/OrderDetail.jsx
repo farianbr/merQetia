@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getOrder, assignEmployee, adminSetDeliveryDate, adminResetStatus, forceCompleteOrder } from '../../api/orders';
 import { getEmployees } from '../../api/admin';
@@ -6,10 +6,13 @@ import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import ConversationEvent from '../../components/ConversationEvent';
+import MeetingMessage from '../../components/MeetingMessage';
+import FullscreenButton from '../../components/FullscreenButton';
+import { useNow, activeMeeting, meetingHeaderLabel } from '../../utils/meeting';
 import {
   LuCalendarDays, LuUserCog, LuSettings2,
   LuCheck, LuX, LuFileText, LuDownload, LuShieldCheck,
-  LuLayoutList, LuClipboardList, LuPaperclip, LuMessageSquare, LuRefreshCw,
+  LuLayoutList, LuClipboardList, LuPaperclip, LuMessageSquare, LuRefreshCw, LuVideo,
 } from 'react-icons/lu';
 
 /* ─── helpers ─────────────────────────────────────── */
@@ -247,6 +250,23 @@ export default function AdminOrderDetail() {
   const mainColRef = useRef(null);
   const [trackerMax, setTrackerMax] = useState(null);
   const socket = useSocket();
+  const now = useNow();
+
+  // Communication log: messages + meeting events, in chronological order.
+  const convoThread = useMemo(() => {
+    if (!order) return [];
+    const items = [
+      ...(order.messages || []).map((m) => ({ ...m, kind: m.kind || 'message', _sort: m.createdAt })),
+      ...(order.meetings || []).map((mt) => ({
+        _id: `meeting-${mt._id}`, kind: 'meeting', meeting: mt,
+        _sort: mt.bookedAt || mt.scheduledAt || mt.createdAt,
+      })),
+    ];
+    return items.sort((a, b) => new Date(a._sort) - new Date(b._sort));
+  }, [order]);
+
+  const liveMeeting = activeMeeting(order?.meetings, now);
+  const [fsConvo, setFsConvo] = useState(false);
 
   // Cap the lifecycle tracker to the left column's height so it never grows
   // past the questionnaires — the step list scrolls internally instead. On
@@ -541,22 +561,36 @@ export default function AdminOrderDetail() {
       </div>
 
       {/* ── Communication Log (full width) ── */}
-      <section className="odv-card odv-convo-card odv-convo-full">
+      <section className={`odv-card odv-convo-card odv-convo-full ${fsConvo ? 'conv-fs' : ''}`}>
           <div className="odv-card-header-row">
             <h2 className="odv-card-title" style={{ margin: 0 }}><LuMessageSquare size={16} color="#3b82f6" />Communication Log</h2>
             {order.messages?.length > 0 && (
               <span className="odv-msg-count">{order.messages.length} message{order.messages.length !== 1 ? 's' : ''}</span>
             )}
             <span className="odv-readonly-tag">Read-Only</span>
+            <FullscreenButton active={fsConvo} onToggle={setFsConvo} />
           </div>
+
+          {liveMeeting && (
+            <div className="cv-head-meeting">
+              <LuVideo size={14} />
+              <span>{meetingHeaderLabel(liveMeeting, now)}</span>
+              {liveMeeting.meetingLink && (
+                <a href={liveMeeting.meetingLink} target="_blank" rel="noreferrer" className="cv-head-join">Join</a>
+              )}
+            </div>
+          )}
 
           {!isConvoOpen ? (
             <p className="odv-conv-empty">Conversation opens once the employee accepts the order.</p>
-          ) : (!order.messages || order.messages.length === 0) ? (
+          ) : convoThread.length === 0 ? (
             <p className="odv-conv-empty">No messages yet.</p>
           ) : (
             <div className="odv-chat">
-              {order.messages.map((msg, i) => {
+              {convoThread.map((msg, i) => {
+                if (msg.kind === 'meeting') {
+                  return <MeetingMessage key={msg._id} meeting={msg.meeting} now={now} showCalendarLink />;
+                }
                 if (msg.kind === 'change-request' || msg.kind === 'review-submitted') {
                   return (
                     <ConversationEvent

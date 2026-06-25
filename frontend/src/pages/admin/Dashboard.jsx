@@ -845,16 +845,31 @@ function OrderGroup({
                           case "client":
                             return (
                               <td key={colKey} className="mq-td">
-                                {order.clientId?.name || "—"}
+                                {order.clientId?._id ? (
+                                  <Link
+                                    to={`/admin/clients/${order.clientId._id}`}
+                                    className="mq-name-link"
+                                  >
+                                    {order.clientId.name || "—"}
+                                  </Link>
+                                ) : (
+                                  order.clientId?.name || "—"
+                                )}
                               </td>
                             );
                           case "employee":
                             return (
                               <td key={colKey} className="mq-td mq-td-employee">
                                 {order.assignedEmployee ? (
-                                  <EmployeeAvatar
-                                    name={order.assignedEmployee.name}
-                                  />
+                                  <Link
+                                    to={`/admin/employees/${order.assignedEmployee._id}`}
+                                    className="mq-name-link"
+                                    title={order.assignedEmployee.name}
+                                  >
+                                    <EmployeeAvatar
+                                      name={order.assignedEmployee.name}
+                                    />
+                                  </Link>
                                 ) : (
                                   <AssignSelect
                                     orderId={order._id}

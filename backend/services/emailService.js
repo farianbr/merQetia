@@ -1,7 +1,7 @@
 const path = require('path');
 const { sendEmail } = require('../utils/mailer');
 const { generatePDF } = require('../utils/pdfGenerator');
-const { orderConfirmationHTML, newOrderAdminHTML, orderAssignedEmployeeHTML } = require('../utils/emailTemplates');
+const { orderConfirmationHTML, newOrderAdminHTML, orderAssignedEmployeeHTML, genericNotificationHTML, employeeInviteHTML, meetingHTML } = require('../utils/emailTemplates');
 const { getInvoiceById } = require('./invoiceService');
 
 /**
@@ -101,4 +101,56 @@ const sendOrderAssignedEmployee = async ({ employee, clientName, services, order
   }).catch((err) => console.error('[Email] Failed to send employee assignment email:', err.message));
 };
 
-module.exports = { sendOrderConfirmation, sendNewOrderAdminAlert, sendOrderAssignedEmployee };
+/**
+ * Generic notification email (messages / mentions / updates) for recipients who
+ * opted into email for that category. Fire-and-forget — never throws.
+ */
+const sendGenericNotification = ({ to, recipientName, subject, heading, message, orderNum, ctaUrl, ctaLabel }) => {
+  const html = genericNotificationHTML({ recipientName, heading, message, orderNum, ctaUrl, ctaLabel });
+  sendEmail({
+    to,
+    subject,
+    html,
+    attachments: [LOGO_ATTACHMENT],
+  }).catch((err) => console.error('[Email] Failed to send notification email:', err.message));
+};
+
+/**
+ * Branded employee invitation email. Awaited by the invite flow so failures
+ * surface to the admin (unlike the fire-and-forget notification emails).
+ */
+const sendEmployeeInvite = ({ to, inviteLink }) =>
+  sendEmail({
+    to,
+    subject: 'You have been invited to join merQetia',
+    html: employeeInviteHTML({ inviteLink }),
+    attachments: [LOGO_ATTACHMENT],
+  });
+
+/**
+ * Branded meeting email (scheduled / updated / cancelled) with the Meet link.
+ * Transactional — sent regardless of notification prefs, like order confirmations.
+ * Fire-and-forget; never throws.
+ */
+const sendMeetingEmail = ({ to, kind, clientName, ticketId, refLabel = 'Ticket', subject, whenStr, durationMins, meetingLink, htmlLink, note }) => {
+  const subjectLine = {
+    scheduled: `Meeting scheduled — ${subject || ticketId}`,
+    updated:   `Meeting rescheduled — ${subject || ticketId}`,
+    cancelled: `Meeting cancelled — ${subject || ticketId}`,
+  }[kind] || `Meeting update — ${ticketId}`;
+  sendEmail({
+    to,
+    subject: subjectLine,
+    html: meetingHTML({ kind, clientName, ticketId, refLabel, subject, whenStr, durationMins, meetingLink, htmlLink, note }),
+    attachments: [LOGO_ATTACHMENT],
+  }).catch((err) => console.error('[Email] Failed to send meeting email:', err.message));
+};
+
+module.exports = {
+  sendOrderConfirmation,
+  sendNewOrderAdminAlert,
+  sendOrderAssignedEmployee,
+  sendGenericNotification,
+  sendEmployeeInvite,
+  sendMeetingEmail,
+};

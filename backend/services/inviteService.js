@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { sendEmail } = require('../utils/mailer');
+const { sendEmployeeInvite } = require('./emailService');
 
 const generateToken = (userId, role) =>
   jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
@@ -29,22 +29,7 @@ const inviteEmployee = async ({ email, name, departments }) => {
 
   const inviteLink = `${process.env.APP_URL}/register/employee?token=${token}`;
 
-  await sendEmail({
-    to: email,
-    subject: 'You have been invited to join merQetia',
-    html: `
-      <h2>You're invited!</h2>
-      <p>An admin has invited you to join merQetia as an employee.</p>
-      <p>Click the link below to complete your registration. This link expires in 48 hours.</p>
-      <a href="${inviteLink}" style="
-        display:inline-block;padding:12px 24px;background:#4F46E5;
-        color:#fff;text-decoration:none;border-radius:6px;font-weight:bold;
-      ">Accept Invitation</a>
-      <p style="margin-top:16px;color:#6B7280;font-size:13px;">
-        If you did not expect this invitation, please ignore this email.
-      </p>
-    `,
-  });
+  await sendEmployeeInvite({ to: email, inviteLink });
 
   return { message: `Invitation sent to ${email}` };
 };

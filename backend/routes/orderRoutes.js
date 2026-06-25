@@ -1,16 +1,27 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
-const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus } = require('../controllers/orderController');
+const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus, scheduleMeeting, rescheduleMeeting, cancelMeeting } = require('../controllers/orderController');
 const { protect } = require('../middlewares/authMiddleware');
 const { authorize } = require('../middlewares/roleMiddleware');
 const { validateOrder, validateAssign } = require('../middlewares/validators');
 const { upload } = require('../middlewares/upload');
 
+// Placing an order triggers an AI summary call — bound how often a client can do
+// it to keep AI usage (and cost) from being abused.
+const orderLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many orders placed. Please try again later.' },
+});
+
 // Employee — view their assigned orders (must be before /:id to avoid route conflict)
 router.get('/my-assignments', protect, authorize('employee'), getMyAssignments);
 
 // Client places an order
-router.post('/', protect, authorize('client'), validateOrder, placeOrder);
+router.post('/', protect, authorize('client'), orderLimiter, validateOrder, placeOrder);
 
 // Admin sees all; Client sees own — handled inside controller
 router.get('/', protect, authorize('admin', 'client'), getOrders);
@@ -47,6 +58,11 @@ router.post('/:id/updates', protect, authorize('admin', 'employee'), upload.arra
 
 // Admin or assigned employee — staff that can be @mentioned on this order's updates
 router.get('/:id/participants', protect, authorize('admin', 'employee'), getParticipants);
+
+// Assigned employee — schedule / reschedule / cancel a video meeting with the client
+router.post('/:id/meetings', protect, authorize('employee'), scheduleMeeting);
+router.patch('/:id/meetings/:meetingId', protect, authorize('employee'), rescheduleMeeting);
+router.delete('/:id/meetings/:meetingId', protect, authorize('employee'), cancelMeeting);
 
 // Admin overrides delivery date on an accepted order
 router.patch('/:id/delivery-date', protect, authorize('admin'), setDeliveryDate);

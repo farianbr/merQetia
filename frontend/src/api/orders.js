@@ -47,6 +47,11 @@ export const sendUpdate = (id, text, files = [], mentions = []) => {
   });
 };
 
+// Order meetings (assigned employee schedules; client is invited)
+export const scheduleOrderMeeting = (id, data) => api.post(`/orders/${id}/meetings`, data);
+export const rescheduleOrderMeeting = (id, meetingId, data) => api.patch(`/orders/${id}/meetings/${meetingId}`, data);
+export const cancelOrderMeeting = (id, meetingId) => api.delete(`/orders/${id}/meetings/${meetingId}`);
+
 export const adminSetDeliveryDate = (id, deliveryDate) =>
   api.patch(`/orders/${id}/delivery-date`, { deliveryDate });
 

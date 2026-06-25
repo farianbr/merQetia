@@ -105,6 +105,7 @@ export default function ClientServices() {
                       value={answers[q] || ''}
                       onChange={(e) => setAnswers({ ...answers, [q]: e.target.value })}
                       placeholder="Your answer..."
+                      maxLength={1000}
                     />
                   </div>
                 ))}
