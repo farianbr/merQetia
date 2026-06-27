@@ -11,6 +11,23 @@ const fmtWhen = (date) =>
 const meetingEnd = (m) =>
   m?.scheduledAt ? new Date(m.scheduledAt).getTime() + (m.durationMins || 0) * 60000 : 0;
 
+/** Validate/normalise a requested meeting time. Throws (statusCode 400) on bad input. */
+const parseMeetingTime = (scheduledAt, durationMins) => {
+  const when = new Date(scheduledAt);
+  if (!scheduledAt || isNaN(when.getTime())) {
+    const err = new Error('A valid meeting date/time is required');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (when.getTime() <= Date.now()) {
+    const err = new Error('The meeting time must be in the future');
+    err.statusCode = 400;
+    throw err;
+  }
+  const duration = Number(durationMins) > 0 ? Math.min(Number(durationMins), 480) : 30;
+  return { when, duration };
+};
+
 /**
  * Whether a parent already has a meeting that hasn't ended yet (and isn't
  * cancelled). A new meeting can only be scheduled when this is false.
@@ -81,6 +98,7 @@ const cancelMeeting = async (meeting) => {
 module.exports = {
   fmtWhen,
   meetingEnd,
+  parseMeetingTime,
   hasActiveMeeting,
   createMeeting,
   rescheduleMeeting,

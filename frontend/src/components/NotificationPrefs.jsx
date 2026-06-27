@@ -12,8 +12,10 @@ const TYPES_BY_ROLE = {
     { key: 'orderSubmitted', label: 'Order submitted for review', desc: 'An employee submits work for client review.' },
     { key: 'changesRequested', label: 'Client requested changes', desc: 'A client requests changes on submitted work.' },
     { key: 'orderCompleted', label: 'Order completed', desc: 'An order is confirmed and completed.' },
-    { key: 'mentions', label: 'You were mentioned', desc: 'Someone @mentions you in an internal update.' },
+    { key: 'mentions', label: 'You were mentioned', desc: 'Someone @mentions you in an internal update or team chat.' },
     { key: 'teamUpdates', label: 'Team updates', desc: 'An employee posts an internal update on an order.' },
+    { key: 'teamMessage', label: 'Team chat messages', desc: 'A new message is posted in a team channel you belong to.' },
+    { key: 'teamMeeting', label: 'Team meetings', desc: 'A team meeting is scheduled, rescheduled, or cancelled.' },
     { key: 'newSupportTicket', label: 'New support ticket', desc: 'A client opens a support ticket.' },
   ],
   employee: [
@@ -23,8 +25,10 @@ const TYPES_BY_ROLE = {
     { key: 'orderCompleted', label: 'Order completed', desc: 'A client confirms and completes your order.' },
     { key: 'deliveryUpdated', label: 'Delivery date updated', desc: 'An admin changes the delivery date.' },
     { key: 'messages', label: 'New messages', desc: 'A client sends a message on your order.' },
-    { key: 'mentions', label: 'You were mentioned', desc: 'Someone @mentions you in an internal update.' },
+    { key: 'mentions', label: 'You were mentioned', desc: 'Someone @mentions you in an internal update or team chat.' },
     { key: 'teamUpdates', label: 'Team updates', desc: 'An admin posts an internal update on your order.' },
+    { key: 'teamMessage', label: 'Team chat messages', desc: 'A new message is posted in a team channel you belong to.' },
+    { key: 'teamMeeting', label: 'Team meetings', desc: 'A team meeting is scheduled, rescheduled, or cancelled.' },
     { key: 'newSupportTicket', label: 'New support ticket', desc: 'A client opens a support ticket.' },
   ],
   client: [

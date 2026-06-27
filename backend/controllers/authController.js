@@ -122,12 +122,14 @@ const updateProfile = async (req, res, next) => {
  */
 const saveDashboardPrefs = async (req, res, next) => {
   try {
-    const { colOrder, visibleCols, sortCol, sortDir } = req.body;
+    const { colOrder, visibleCols, sortByGroup, filterByGroup } = req.body;
+    const isPlainObject = (v) =>
+      v && typeof v === 'object' && !Array.isArray(v);
     await User.findByIdAndUpdate(req.user.id, {
-      'dashboardPrefs.colOrder':    Array.isArray(colOrder)    ? colOrder    : [],
-      'dashboardPrefs.visibleCols': Array.isArray(visibleCols) ? visibleCols : [],
-      'dashboardPrefs.sortCol':     sortCol  || null,
-      'dashboardPrefs.sortDir':     sortDir  || 'asc',
+      'dashboardPrefs.colOrder':      Array.isArray(colOrder)    ? colOrder    : [],
+      'dashboardPrefs.visibleCols':   Array.isArray(visibleCols) ? visibleCols : [],
+      'dashboardPrefs.sortByGroup':   isPlainObject(sortByGroup)   ? sortByGroup   : {},
+      'dashboardPrefs.filterByGroup': isPlainObject(filterByGroup) ? filterByGroup : {},
     });
     res.json({ success: true });
   } catch (err) {

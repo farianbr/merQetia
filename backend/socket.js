@@ -71,4 +71,10 @@ const emitToStaff = (event, payload) => {
   if (io) io.to(STAFF_ROOM).emit(event, payload);
 };
 
-module.exports = { initSocket, emitToUser, emitToAdmins, emitToStaff };
+/** Emit an event to a specific set of users (e.g. a department channel's members). */
+const emitToUsers = (userIds, event, payload) => {
+  if (!io || !userIds) return;
+  for (const id of userIds) emitToUser(id, event, payload);
+};
+
+module.exports = { initSocket, emitToUser, emitToAdmins, emitToStaff, emitToUsers };

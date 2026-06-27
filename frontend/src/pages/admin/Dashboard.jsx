@@ -17,6 +17,7 @@ import { highlightMentions, extractMentionIds } from "../../utils/mentions";
 import {
   LuChevronDown,
   LuFile,
+  LuFilter,
   LuMessageSquare,
   LuPaperclip,
   LuPlus,
@@ -63,6 +64,7 @@ const COLUMN_DEFS = [
     label: "Client",
     sortable: true,
     sortType: "alpha",
+    filterType: "client",
     defaultVisible: true,
   },
   {
@@ -70,6 +72,7 @@ const COLUMN_DEFS = [
     label: "Employee",
     sortable: true,
     sortType: "alpha",
+    filterType: "employee",
     defaultVisible: true,
   },
   {
@@ -77,6 +80,7 @@ const COLUMN_DEFS = [
     label: "Status",
     sortable: true,
     sortType: "status",
+    filterType: "status",
     defaultVisible: true,
   },
   {
@@ -84,6 +88,7 @@ const COLUMN_DEFS = [
     label: "Payment",
     sortable: true,
     sortType: "payment",
+    filterType: "payment",
     defaultVisible: true,
   },
   {
@@ -116,6 +121,42 @@ const STATUS_TIMELINE = [
   "completed",
   "rejected",
 ];
+
+/** Status shown to the user, promoting accepted-but-past-due orders to "overdue". */
+function effectiveStatus(o) {
+  if (o.status === "accepted" && o.deliveryDate) {
+    const due = new Date(o.deliveryDate);
+    due.setHours(23, 59, 59, 999);
+    if (due < new Date()) return "overdue";
+  }
+  return o.status;
+}
+
+/** The discrete value an order contributes to a column's filter (id/key + label). */
+function filterValueOf(o, filterType) {
+  switch (filterType) {
+    case "status": {
+      const st = effectiveStatus(o);
+      return { value: st, label: STATUS_CONFIG[st]?.label || st };
+    }
+    case "payment": {
+      if (!o.invoice) return { value: "none", label: "No invoice" };
+      return o.invoice.status === "paid"
+        ? { value: "paid", label: "Paid" }
+        : { value: "unpaid", label: "Unpaid" };
+    }
+    case "employee":
+      return o.assignedEmployee
+        ? { value: o.assignedEmployee._id, label: o.assignedEmployee.name }
+        : { value: "unassigned", label: "Unassigned" };
+    case "client":
+      return o.clientId?._id
+        ? { value: o.clientId._id, label: o.clientId.name || "—" }
+        : { value: "none", label: "—" };
+    default:
+      return { value: "", label: "" };
+  }
+}
 
 const GROUPS = [
   {
@@ -577,6 +618,103 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
   );
 }
 
+/* ─── Column Filter ──────────────────────────────────────────────── */
+function ColumnFilter({ options, selected, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const active = selected.length > 0;
+
+  const toggleMenu = (e) => {
+    e.stopPropagation();
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 4, left: r.left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  const toggleVal = (val) => {
+    const set = new Set(selected);
+    if (set.has(val)) set.delete(val);
+    else set.add(val);
+    onChange([...set]);
+  };
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className={`mq-th-filter${active ? " mq-th-filter--active" : ""}`}
+        onClick={toggleMenu}
+        onMouseDown={(e) => e.stopPropagation()}
+        title={active ? `Filtered · ${selected.length}` : "Filter"}
+      >
+        <LuFilter size={11} />
+        {active && <span className="mq-th-filter-dot" />}
+      </button>
+      {open && pos && (
+        <>
+          <div
+            className="mq-filter-overlay"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+            }}
+          />
+          <div
+            className="mq-filter-menu"
+            style={{ top: pos.top, left: pos.left }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mq-filter-menu-head">
+              <span>Filter</span>
+              {active && (
+                <button
+                  type="button"
+                  className="mq-filter-clear"
+                  onClick={() => onChange([])}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {options.length === 0 ? (
+              <div className="mq-filter-empty">No values</div>
+            ) : (
+              options.map((opt) => (
+                <label key={opt.value} className="mq-filter-option">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(opt.value)}
+                    onChange={() => toggleVal(opt.value)}
+                  />
+                  <span className="mq-filter-option-label">{opt.label}</span>
+                </label>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 /* ─── Order Group ────────────────────────────────────────────────── */
 function OrderGroup({
   group,
@@ -589,6 +727,8 @@ function OrderGroup({
   visibleCols,
   sortState,
   onSort,
+  filters,
+  onFilterChange,
   onColDragStart,
   onColDrop,
   onAddColClick,
@@ -608,21 +748,48 @@ function OrderGroup({
     [colOrder, visibleCols],
   );
 
-  const getEffectiveStatus = useCallback((o) => {
-    if (o.status === "accepted" && o.deliveryDate) {
-      const due = new Date(o.deliveryDate);
-      due.setHours(23, 59, 59, 999);
-      if (due < new Date()) return "overdue";
+  const getEffectiveStatus = effectiveStatus;
+
+  // Distinct filter options per filterable column, drawn from this group's orders.
+  const filterOptions = useMemo(() => {
+    const maps = {};
+    groupOrders.forEach((o) => {
+      COLUMN_DEFS.forEach((def) => {
+        if (!def.filterType) return;
+        const { value, label } = filterValueOf(o, def.filterType);
+        (maps[def.key] ||= new Map()).set(value, label);
+      });
+    });
+    const out = {};
+    for (const [key, m] of Object.entries(maps)) {
+      out[key] = [...m.entries()]
+        .map(([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label));
     }
-    return o.status;
-  }, []);
+    return out;
+  }, [groupOrders]);
+
+  // Apply this group's active filters before sorting.
+  const filteredOrders = useMemo(() => {
+    const entries = Object.entries(filters).filter(
+      ([, vals]) => vals && vals.length > 0,
+    );
+    if (entries.length === 0) return groupOrders;
+    return groupOrders.filter((o) =>
+      entries.every(([colKey, vals]) => {
+        const def = COLUMN_DEFS.find((c) => c.key === colKey);
+        if (!def?.filterType) return true;
+        return vals.includes(filterValueOf(o, def.filterType).value);
+      }),
+    );
+  }, [groupOrders, filters]);
 
   const sortedOrders = useMemo(() => {
     const { col, dir } = sortState;
-    if (!col) return groupOrders;
+    if (!col) return filteredOrders;
     const def = COLUMN_DEFS.find((c) => c.key === col);
-    if (!def) return groupOrders;
-    return [...groupOrders].sort((a, b) => {
+    if (!def) return filteredOrders;
+    return [...filteredOrders].sort((a, b) => {
       if (def.sortType === "alpha") {
         let av = "",
           bv = "";
@@ -673,20 +840,21 @@ function OrderGroup({
       }
       return 0;
     });
-  }, [groupOrders, sortState, getEffectiveStatus]);
+  }, [filteredOrders, sortState, getEffectiveStatus]);
 
+  // Footer summary reflects the rows actually shown (after filtering).
   const statusCounts = useMemo(
     () =>
-      groupOrders.reduce((acc, o) => {
+      filteredOrders.reduce((acc, o) => {
         const st = getEffectiveStatus(o);
         acc[st] = (acc[st] || 0) + 1;
         return acc;
       }, {}),
-    [groupOrders, getEffectiveStatus],
+    [filteredOrders, getEffectiveStatus],
   );
 
   const dateRange = useMemo(() => {
-    const dates = groupOrders
+    const dates = filteredOrders
       .filter((o) => o.deliveryDate)
       .map((o) => new Date(o.deliveryDate));
     if (!dates.length) return null;
@@ -697,7 +865,9 @@ function OrderGroup({
     return min.getTime() === max.getTime()
       ? fmt(min)
       : `${fmt(min)} – ${fmt(max)}`;
-  }, [groupOrders]);
+  }, [filteredOrders]);
+
+  const hasFilters = Object.values(filters).some((v) => v && v.length > 0);
 
   return (
     <div className="mq-group">
@@ -714,7 +884,11 @@ function OrderGroup({
         <span className="mq-group-name" style={{ color: group.color }}>
           {group.label}
         </span>
-        <span className="mq-group-count">{groupOrders.length}</span>
+        <span className="mq-group-count">
+          {hasFilters
+            ? `${filteredOrders.length}/${groupOrders.length}`
+            : groupOrders.length}
+        </span>
       </div>
 
       {!collapsed && (
@@ -765,6 +939,13 @@ function OrderGroup({
                                 : "↓"
                               : "↕"}
                           </span>
+                        )}
+                        {def.filterType && (
+                          <ColumnFilter
+                            options={filterOptions[colKey] || []}
+                            selected={filters[colKey] || []}
+                            onChange={(vals) => onFilterChange(colKey, vals)}
+                          />
                         )}
                       </span>
                     </th>
@@ -959,7 +1140,7 @@ function OrderGroup({
                               label: st,
                               color: "#9ca3af",
                             };
-                            const total = groupOrders.length;
+                            const total = filteredOrders.length;
                             return (
                               <div
                                 key={st}
@@ -1066,11 +1247,24 @@ export default function AdminDashboard() {
     return DEFAULT_VISIBLE_COLS;
   });
 
-  const [sortState, setSortState] = useState(() => {
-    if (prefs?.sortCol)
-      return { col: prefs.sortCol, dir: prefs.sortDir || "asc" };
-    return { col: null, dir: "asc" };
+  // Sort & filter are per-group (keyed by group.key) so acting on one group's
+  // column doesn't disturb the others. Column order/visibility stay global.
+  const [sortByGroup, setSortByGroup] = useState(() => {
+    if (prefs?.sortByGroup && typeof prefs.sortByGroup === "object")
+      return prefs.sortByGroup;
+    // Migrate the old single global sort onto every group.
+    if (prefs?.sortCol) {
+      const legacy = { col: prefs.sortCol, dir: prefs.sortDir || "asc" };
+      return Object.fromEntries(GROUPS.map((g) => [g.key, legacy]));
+    }
+    return {};
   });
+
+  const [filterByGroup, setFilterByGroup] = useState(() =>
+    prefs?.filterByGroup && typeof prefs.filterByGroup === "object"
+      ? prefs.filterByGroup
+      : {},
+  );
 
   const [showColPicker, setShowColPicker] = useState(false);
   const [colPickerPos, setColPickerPos] = useState({ top: 0, left: 0 });
@@ -1090,17 +1284,29 @@ export default function AdminDashboard() {
       saveDashboardPrefs({
         colOrder,
         visibleCols: [...visibleCols],
-        sortCol: sortState.col,
-        sortDir: sortState.dir,
+        sortByGroup,
+        filterByGroup,
       }).catch(() => {});
     }, 800);
-  }, [colOrder, visibleCols, sortState]);
+  }, [colOrder, visibleCols, sortByGroup, filterByGroup]);
 
-  const handleSort = useCallback((colKey) => {
-    setSortState((prev) => {
-      if (prev.col !== colKey) return { col: colKey, dir: "asc" };
-      if (prev.dir === "asc") return { col: colKey, dir: "desc" };
-      return { col: null, dir: "asc" };
+  const handleSort = useCallback((groupKey, colKey) => {
+    setSortByGroup((prev) => {
+      const cur = prev[groupKey] || { col: null, dir: "asc" };
+      let next;
+      if (cur.col !== colKey) next = { col: colKey, dir: "asc" };
+      else if (cur.dir === "asc") next = { col: colKey, dir: "desc" };
+      else next = { col: null, dir: "asc" };
+      return { ...prev, [groupKey]: next };
+    });
+  }, []);
+
+  const handleFilterChange = useCallback((groupKey, colKey, values) => {
+    setFilterByGroup((prev) => {
+      const cur = { ...(prev[groupKey] || {}) };
+      if (!values || values.length === 0) delete cur[colKey];
+      else cur[colKey] = values;
+      return { ...prev, [groupKey]: cur };
     });
   }, []);
 
@@ -1297,8 +1503,12 @@ export default function AdminDashboard() {
               onAssign={handleAssign}
               colOrder={colOrder}
               visibleCols={visibleCols}
-              sortState={sortState}
-              onSort={handleSort}
+              sortState={sortByGroup[group.key] || { col: null, dir: "asc" }}
+              onSort={(colKey) => handleSort(group.key, colKey)}
+              filters={filterByGroup[group.key] || {}}
+              onFilterChange={(colKey, vals) =>
+                handleFilterChange(group.key, colKey, vals)
+              }
               onColDragStart={handleColDragStart}
               onColDrop={handleColDrop}
               onAddColClick={handleAddColClick}

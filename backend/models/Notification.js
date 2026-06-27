@@ -19,6 +19,12 @@ const notificationSchema = new mongoose.Schema(
       ref: 'SupportRequest',
       default: null,
     },
+    // Team chat notifications set channelId.
+    channelId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Channel',
+      default: null,
+    },
     // Explicit navigation target (used by support notifications); order
     // notifications fall back to orderId-based routing on the client.
     link: {
@@ -27,7 +33,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['status', 'message', 'support'],
+      enum: ['status', 'message', 'support', 'team'],
       required: true,
     },
     typeLabel: {

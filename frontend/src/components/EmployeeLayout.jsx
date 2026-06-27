@@ -8,7 +8,7 @@ import { getMyAssignments } from '../api/orders';
 import { getSupportRequests } from '../api/support';
 import {
   LuLayoutDashboard, LuClipboardCheck, LuBell, LuSettings, LuLogOut, LuUser,
-  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu, LuLifeBuoy,
+  LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu, LuLifeBuoy, LuUsers,
 } from 'react-icons/lu';
 
 function mapOrders(r) {
@@ -30,11 +30,13 @@ const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://lo
 const NAV_ITEMS = [
   { path: '/employee',        label: 'Dashboard', Icon: LuLayoutDashboard, exact: true },
   { path: '/employee/orders', label: 'Orders',    Icon: LuClipboardCheck },
+  { path: '/employee/team',   label: 'Team',      Icon: LuUsers },
 ];
 
 const SEARCH_ITEMS = [
   { label: 'Dashboard',     path: '/employee',                Icon: LuLayoutDashboard, group: 'Pages' },
   { label: 'My Orders',     path: '/employee/orders',         Icon: LuClipboardCheck,  group: 'Pages' },
+  { label: 'Team',          path: '/employee/team',           Icon: LuUsers,           group: 'Pages' },
   { label: 'Profile',       path: '/employee/profile',        Icon: LuUser,            group: 'Account' },
   { label: 'Settings',      path: '/employee/settings',       Icon: LuSettings,        group: 'Account' },
   { label: 'Notifications', path: '/employee/notifications',  Icon: LuBell,            group: 'Account' },

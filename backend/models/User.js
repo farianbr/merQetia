@@ -15,6 +15,8 @@ const NOTIFICATION_KEYS = [
   'changesRequested', 'orderCompleted', 'deliveryUpdated',
   // Conversation / collaboration
   'messages', 'mentions', 'teamUpdates',
+  // Team chat (org-wide & department channels)
+  'teamMessage', 'teamMeeting',
   // Support center
   'supportUpdate',     // client: their ticket was accepted / replied / scheduled
   'newSupportTicket',  // staff: a client submitted a new support ticket
@@ -88,8 +90,12 @@ const userSchema = new mongoose.Schema(
     dashboardPrefs: {
       colOrder:    { type: [String], default: [] },
       visibleCols: { type: [String], default: [] },
+      // Legacy single global sort — superseded by sortByGroup, kept for migration.
       sortCol:     { type: String,   default: null },
       sortDir:     { type: String,   default: 'asc' },
+      // Per-group sort/filter, keyed by group key (e.g. { new: { col, dir } }).
+      sortByGroup:   { type: Object, default: {} },
+      filterByGroup: { type: Object, default: {} },
     },
     // Used for employee invite flow
     isInvited: {

@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   getEmployees, inviteEmployee, updateEmployeeDepartments,
   getDepartments, createDepartment, updateDepartment, deleteDepartment,
 } from '../../api/admin';
+import { getChannels } from '../../api/team';
+import ChannelChat from '../../components/ChannelChat';
 import {
-  LuCircleCheck, LuUsers, LuLayers, LuPencil, LuTrash2, LuPlus, LuUserPlus,
+  LuCircleCheck, LuUsers, LuLayers, LuPencil, LuTrash2, LuPlus, LuUserPlus, LuMessageSquare,
 } from 'react-icons/lu';
 
 /* ── Invite Employee Modal ─────────────────────────────────────────── */
@@ -234,9 +236,11 @@ function DeptModal({ dept, onClose, onSaved }) {
 
 /* ── Team Page ─────────────────────────────────────────────────────── */
 export default function AdminTeam() {
-  const [tab, setTab] = useState('members');
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get('channel') ? 'chat' : 'members');
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [orgChannel, setOrgChannel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deptFilter, setDeptFilter] = useState('all');
 
@@ -259,6 +263,13 @@ export default function AdminTeam() {
   };
 
   useEffect(() => { loadAll(); }, []);
+
+  // The org-wide "merQetia" channel powers the Chat tab.
+  useEffect(() => {
+    getChannels()
+      .then((r) => setOrgChannel((r.data.channels || []).find((c) => c.kind === 'org') || null))
+      .catch(() => setOrgChannel(null));
+  }, []);
 
   const refreshDepartments = async () => {
     try {
@@ -313,15 +324,20 @@ export default function AdminTeam() {
           <button className={`tm-tab ${tab === 'departments' ? 'tm-tab--active' : ''}`} onClick={() => setTab('departments')}>
             <LuLayers size={15} /> Departments <span className="tm-tab-count">{departments.length}</span>
           </button>
-        </div>
-        <div className="tm-actions">
-          <button className="btn-secondary" onClick={() => { setEditDept(null); setShowDeptModal(true); }}>
-            <LuPlus size={15} /> New Department
-          </button>
-          <button className="btn-primary" onClick={() => setShowInvite(true)}>
-            <LuUserPlus size={15} /> Invite Employee
+          <button className={`tm-tab ${tab === 'chat' ? 'tm-tab--active' : ''}`} onClick={() => setTab('chat')}>
+            <LuMessageSquare size={15} /> Chat
           </button>
         </div>
+        {tab !== 'chat' && (
+          <div className="tm-actions">
+            <button className="btn-secondary" onClick={() => { setEditDept(null); setShowDeptModal(true); }}>
+              <LuPlus size={15} /> New Department
+            </button>
+            <button className="btn-primary" onClick={() => setShowInvite(true)}>
+              <LuUserPlus size={15} /> Invite Employee
+            </button>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -389,7 +405,7 @@ export default function AdminTeam() {
             </table>
           </div>
         </>
-      ) : (
+      ) : tab === 'departments' ? (
         /* Departments tab */
         departments.length === 0 ? (
           <div className="tm-empty">
@@ -423,6 +439,9 @@ export default function AdminTeam() {
             ))}
           </div>
         )
+      ) : (
+        /* Chat tab — the org-wide merQetia channel */
+        orgChannel ? <ChannelChat channel={orgChannel} /> : <div className="loading">Loading chat…</div>
       )}
 
       {showInvite && (

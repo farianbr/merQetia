@@ -1,5 +1,6 @@
 const Department = require('../models/Department');
 const User = require('../models/User');
+const { ensureChannels } = require('../services/teamService');
 
 const DEFAULT_DEPARTMENTS = ['Creative', 'Strategy', 'Media Buying'];
 
@@ -59,6 +60,7 @@ const create = async (req, res, next) => {
     if (exists) return res.status(409).json({ success: false, message: 'A department with that name already exists' });
 
     const dept = await Department.create({ name, description });
+    ensureChannels().catch(() => {}); // create the matching team channel
     res.status(201).json({ success: true, department: dept });
   } catch (err) {
     next(err);
@@ -114,6 +116,7 @@ const remove = async (req, res, next) => {
       { $pull: { departments: dept.name } },
     );
     await dept.deleteOne();
+    ensureChannels().catch(() => {}); // prune the orphaned team channel + its messages
 
     res.status(200).json({ success: true });
   } catch (err) {
