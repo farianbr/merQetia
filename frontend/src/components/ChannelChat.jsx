@@ -208,16 +208,14 @@ export default function ChannelChat({ channel }) {
               const senderName = msg.sender?.name || '—';
               return (
                 <div key={msg._id} className="mq-msg">
-                  <div className="mq-msg-header">
-                    <span className="mq-msg-avatar" style={{ background: msg.senderRole === 'admin' ? '#7c4dff' : '#1f8cb4' }}>
-                      {initialsOf(senderName)}
-                    </span>
-                    <div className="mq-msg-info">
+                  <span className="mq-msg-avatar" style={{ background: msg.senderRole === 'admin' ? '#7c4dff' : '#1f8cb4' }}>
+                    {initialsOf(senderName)}
+                  </span>
+                  <div className="mq-msg-main">
+                    <div className="mq-msg-meta">
                       <span className="mq-msg-sender">{senderName} <span className="tc-role">{msg.senderRole}</span></span>
                       <span className="mq-msg-time">{fmtTimeAgo(msg.createdAt)}</span>
                     </div>
-                  </div>
-                  <div className="mq-msg-body">
                     {msg.text && <p className="mq-msg-text">{highlightMentions(msg.text, msg.mentions)}</p>}
                     <ChatAttachments attachments={msg.attachments} onImageClick={(src, name) => setLightbox({ src, name })} />
                   </div>

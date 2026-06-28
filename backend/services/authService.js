@@ -52,10 +52,14 @@ const loginUser = async ({ email, password }) => {
 
   const token = generateToken(user._id, user.role);
 
-  return {
-    token,
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
-  };
+  // Return the full sanitized user (incl. dashboardPrefs/notificationPrefs) so
+  // the client has everything on login. Otherwise an in-app logout→login leaves
+  // the stored user without dashboardPrefs (getMe only runs on a hard reload),
+  // and dashboards re-init from defaults — wiping saved column choices.
+  const safeUser = user.toObject();
+  delete safeUser.password;
+
+  return { token, user: safeUser };
 };
 
 module.exports = { registerClient, loginUser };

@@ -56,7 +56,9 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Auto-remove notifications older than 30 days
-notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
+// Auto-remove notifications older than 7 days (TTL index). Changing this value
+// on an existing collection also requires reconciling the live index — see
+// ensureNotificationTTL in config/db.js.
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

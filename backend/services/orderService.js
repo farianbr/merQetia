@@ -69,6 +69,34 @@ const notify = (userId, orderId, orderNum, type, typeLabel, body, key, { email =
 };
 
 /**
+ * Resolve the display names of an order's client and assigned employee so
+ * notifications can address people by name instead of generic role words.
+ * Accepts an order whose clientId / assignedEmployee may be ids or populated
+ * docs. Falls back gracefully if a user can't be found (e.g. deleted).
+ */
+const resolveOrderNames = async (order) => {
+  const clientRef = order.clientId?._id || order.clientId;
+  const employeeRef = order.assignedEmployee?._id || order.assignedEmployee;
+  const [client, employee] = await Promise.all([
+    order.clientId?.name ? Promise.resolve(order.clientId) : (clientRef ? User.findById(clientRef).select('name').lean() : null),
+    order.assignedEmployee?.name ? Promise.resolve(order.assignedEmployee) : (employeeRef ? User.findById(employeeRef).select('name').lean() : null),
+  ]);
+  return {
+    clientName: client?.name || 'the client',
+    employeeName: employee?.name || 'your specialist',
+  };
+};
+
+/** First service name + "(+N more)" for compact, readable notification context. */
+const serviceSummaryOf = (order) => {
+  const names = (order.services || [])
+    .map((s) => s?.name)
+    .filter(Boolean);
+  if (names.length === 0) return '';
+  return names.length === 1 ? names[0] : `${names[0]} (+${names.length - 1} more)`;
+};
+
+/**
  * Push a populated order to everyone involved (client, assigned employee, admins)
  * so their open lists / detail pages update without a refresh.
  */
@@ -199,8 +227,8 @@ const createOrder = async ({ clientId, serviceIds, answers = {} }) => {
         order._id,
         orderNum,
         'status',
-        'New Order',
-        `New order ${orderNum} placed by ${client.name} for: ${serviceNames}. Needs employee assignment.`,
+        'New order placed',
+        `${client.name} placed a new order ${orderNum} for ${serviceNames}. It's ready to be assigned to a specialist.`,
         'newOrder',
         { email: false } // dedicated rich email sent above
       )
@@ -231,6 +259,7 @@ const getAllOrders = async ({ page = 1, limit = 20, status } = {}) => {
       .populate('assignedEmployee', 'name email')
       .populate('messages.sender', 'name')
       .populate('updates.sender', 'name')
+      .populate('updates.mentions', 'name')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 }),
@@ -281,6 +310,7 @@ const getClientOrders = async ({ clientId, page = 1, limit = 20 }) => {
       .populate('assignedEmployee', 'name email')
       .populate('messages.sender', 'name')
       .populate('updates.sender', 'name')
+      .populate('updates.mentions', 'name')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 }),
@@ -301,7 +331,8 @@ const getOrderById = async (id) => {
     .populate('services', 'name price department questions')
     .populate('assignedEmployee', 'name email')
     .populate('messages.sender', 'name')
-    .populate('updates.sender', 'name');
+    .populate('updates.sender', 'name')
+    .populate('updates.mentions', 'name');
 
   if (!order) {
     const err = new Error('Order not found');
@@ -351,12 +382,18 @@ const assignEmployee = async (orderId, employeeId) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  await order.populate('services', 'name');
+  const assignClient = await User.findById(order.clientId).select('name').lean();
+  const clientName = assignClient?.name || 'the client';
+  const svc = serviceSummaryOf(order);
+  const svcPart = svc ? ` for ${svc}` : '';
+
   // Notify the previously-assigned employee that the order was reassigned away.
   if (isReassignment) {
-    notify(previousEmployeeId, order._id, orderNum, 'status', 'Order Reassigned', `Order ${orderNum} has been reassigned to another employee and is no longer in your queue.`, 'reassigned');
+    notify(previousEmployeeId, order._id, orderNum, 'status', 'Order reassigned', `Order ${orderNum}${svcPart} has been reassigned to ${employee.name} and is no longer in your queue.`, 'reassigned');
   }
-  notify(order.clientId, order._id, orderNum, 'status', 'Order Assigned', `Your order ${orderNum} has been assigned to an employee. They will review and respond shortly.`, 'orderAssigned');
-  notify(employeeId, order._id, orderNum, 'status', 'New Order Assigned to You', `Order ${orderNum} from a client has been assigned to you. Please review and accept or decline.`, 'newAssignment', { email: false }); // dedicated rich email sent below
+  notify(order.clientId, order._id, orderNum, 'status', 'Order assigned', `${employee.name} has been assigned to your order ${orderNum}${svcPart} and will review it and respond shortly.`, 'orderAssigned');
+  notify(employeeId, order._id, orderNum, 'status', 'New order assigned to you', `${clientName}'s order ${orderNum}${svcPart} has been assigned to you. Please review the details and accept or decline.`, 'newAssignment', { email: false }); // dedicated rich email sent below
 
   // Email the assigned employee (fire-and-forget)
   Promise.all([
@@ -407,9 +444,10 @@ const acceptOrder = async (orderId, employeeId, deliveryDate) => {
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
   const fmtDelivery = new Date(deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  notify(order.clientId, order._id, orderNum, 'status', 'Order In Progress', `Your order ${orderNum} has been accepted and is now in progress. Estimated delivery: ${fmtDelivery}.`, 'orderInProgress');
+  const { clientName, employeeName } = await resolveOrderNames(order);
+  notify(order.clientId, order._id, orderNum, 'status', 'Order in progress', `${employeeName} has accepted your order ${orderNum} and started working on it. Estimated delivery: ${fmtDelivery}.`, 'orderInProgress');
   User.find({ role: 'admin' }).select('_id').then((admins) => {
-    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order Accepted by Employee', `Order ${orderNum} has been accepted by the assigned employee. Delivery date set to ${fmtDelivery}.`, 'orderAccepted'));
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order accepted', `${employeeName} accepted ${clientName}'s order ${orderNum} and set the delivery date to ${fmtDelivery}.`, 'orderAccepted'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -445,15 +483,16 @@ const rejectOrder = async (orderId, employeeId, reason) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  const { clientName, employeeName } = await resolveOrderNames(order);
   const rejectBody = reason
-    ? `Your order ${orderNum} was declined by the employee. Reason: ${reason}. Admin will arrange reassignment.`
-    : `Your order ${orderNum} was declined by the employee. Admin will arrange reassignment.`;
-  notify(order.clientId, order._id, orderNum, 'status', 'Order Declined', rejectBody, 'orderDeclined');
+    ? `Your order ${orderNum} couldn't be taken on right now. Reason: ${reason}. Our team will arrange a new specialist shortly.`
+    : `Your order ${orderNum} couldn't be taken on right now. Our team will arrange a new specialist shortly.`;
+  notify(order.clientId, order._id, orderNum, 'status', 'Order declined', rejectBody, 'orderDeclined');
   User.find({ role: 'admin' }).select('_id').then((admins) => {
     const adminBody = reason
-      ? `Order ${orderNum} was rejected by the employee. Reason: ${reason}.`
-      : `Order ${orderNum} was rejected by the employee. No reason provided.`;
-    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order Rejected by Employee', adminBody, 'orderRejected'));
+      ? `${employeeName} declined ${clientName}'s order ${orderNum}. Reason: ${reason}. It needs reassignment.`
+      : `${employeeName} declined ${clientName}'s order ${orderNum} (no reason provided). It needs reassignment.`;
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order declined', adminBody, 'orderRejected'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -497,9 +536,10 @@ const submitForReview = async (orderId, employeeId) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  notify(order.clientId, order._id, orderNum, 'status', 'Order Ready for Review', `Your order ${orderNum} is ready for review. Please confirm completion or request changes.`, 'orderReview');
+  const { clientName, employeeName } = await resolveOrderNames(order);
+  notify(order.clientId, order._id, orderNum, 'status', 'Order ready for review', `${employeeName} has submitted your order ${orderNum} for review. Please take a look and confirm completion or request changes.`, 'orderReview');
   User.find({ role: 'admin' }).select('_id').then((admins) => {
-    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order Submitted for Review', `Order ${orderNum} has been submitted for client review by the assigned employee.`, 'orderSubmitted'));
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order submitted for review', `${employeeName} submitted ${clientName}'s order ${orderNum} for review. Awaiting client confirmation.`, 'orderSubmitted'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -535,11 +575,12 @@ const confirmOrder = async (orderId, clientId) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  const { clientName, employeeName } = await resolveOrderNames(order);
   if (order.assignedEmployee) {
-    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Order Completed', `The client has confirmed and completed order ${orderNum}. Great work!`, 'orderCompleted');
+    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Order completed', `${clientName} has confirmed and completed order ${orderNum}. Great work, ${employeeName}!`, 'orderCompleted');
   }
   User.find({ role: 'admin' }).select('_id').then((admins) => {
-    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been confirmed and completed by the client.`, 'orderCompleted'));
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Order completed', `${clientName} confirmed and completed order ${orderNum}, delivered by ${employeeName}.`, 'orderCompleted'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -583,14 +624,15 @@ const requestChanges = async (orderId, clientId, note) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  const body = note
-    ? `The client requested changes on order ${orderNum}: "${note.slice(0, 120)}"`
-    : `The client requested changes on order ${orderNum}.`;
+  const { clientName, employeeName } = await resolveOrderNames(order);
+  const notePart = note ? `: "${note.slice(0, 120)}"` : '.';
+  const employeeBody = `${clientName} requested changes on order ${orderNum}${notePart}`;
   if (order.assignedEmployee) {
-    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Changes Requested', body, 'changesRequested');
+    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Changes requested', employeeBody, 'changesRequested');
   }
   User.find({ role: 'admin' }).select('_id').then((admins) => {
-    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Changes Requested', body, 'changesRequested'));
+    const adminBody = `${clientName} requested changes on order ${orderNum} (assigned to ${employeeName})${notePart}`;
+    admins.forEach((a) => notify(a._id, order._id, orderNum, 'status', 'Changes requested', adminBody, 'changesRequested'));
   }).catch(() => {});
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -621,9 +663,10 @@ const adminForceComplete = async (orderId) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  notify(order.clientId, order._id, orderNum, 'status', 'Order Completed', `Your order ${orderNum} has been marked as completed.`, 'orderCompleted');
+  const { clientName } = await resolveOrderNames(order);
+  notify(order.clientId, order._id, orderNum, 'status', 'Order completed', `Your order ${orderNum} has been marked as completed. Thank you for working with us!`, 'orderCompleted');
   if (order.assignedEmployee) {
-    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Order Completed', `Order ${orderNum} has been marked as completed by an admin.`, 'orderCompleted');
+    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Order completed', `${clientName}'s order ${orderNum} has been marked as completed by the team.`, 'orderCompleted');
   }
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -667,16 +710,19 @@ const addMessage = async (orderId, senderId, senderRole, text, attachments = [])
 
   // Notify the other party (employee → notify client; client → notify employee)
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
+  const { clientName, employeeName } = await resolveOrderNames(order);
+  const fileCount = attachments.length;
+  const filePhrase = `${fileCount} file${fileCount !== 1 ? 's' : ''}`;
   if (senderRole === 'employee') {
     const body = text
-      ? `Your employee sent a message on order ${orderNum}: "${text.slice(0, 80)}"`
-      : `Your employee shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
-    notify(order.clientId, order._id, orderNum, 'message', 'New Message from Employee', body, 'messages');
+      ? `${employeeName} sent you a message on order ${orderNum}: "${text.slice(0, 90)}"`
+      : `${employeeName} shared ${filePhrase} with you on order ${orderNum}.`;
+    notify(order.clientId, order._id, orderNum, 'message', `New message from ${employeeName}`, body, 'messages');
   } else if (senderRole === 'client' && order.assignedEmployee) {
     const body = text
-      ? `Client sent a message on order ${orderNum}: "${text.slice(0, 80)}"`
-      : `Client shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
-    notify(order.assignedEmployee, order._id, orderNum, 'message', 'New Message from Client', body, 'messages');
+      ? `${clientName} sent a message on order ${orderNum}: "${text.slice(0, 90)}"`
+      : `${clientName} shared ${filePhrase} on order ${orderNum}.`;
+    notify(order.assignedEmployee, order._id, orderNum, 'message', `New message from ${clientName}`, body, 'messages');
   }
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -699,6 +745,7 @@ const getEmployeeOrders = async ({ employeeId, page = 1, limit = 20, status }) =
       .populate('services', 'name price department')
       .populate('messages.sender', 'name')
       .populate('updates.sender', 'name')
+      .populate('updates.mentions', 'name')
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 }),
@@ -743,15 +790,24 @@ const addUpdate = async (orderId, senderId, senderRole, text, attachments = [], 
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
 
+  // Resolve names once so every notification addresses people directly.
+  const [sender, updateClient] = await Promise.all([
+    User.findById(senderId).select('name').lean(),
+    order.clientId ? User.findById(order.clientId).select('name').lean() : null,
+  ]);
+  const senderName = sender?.name || 'A teammate';
+  const clientName = updateClient?.name || 'the client';
+  const snippet = text ? text.slice(0, 90) : '';
+  const fileCount = attachments.length;
+  const filePhrase = `${fileCount} file${fileCount !== 1 ? 's' : ''}`;
+
   // Notify mentioned participants directly.
   if (mentionIds.length) {
-    const sender = await User.findById(senderId).select('name');
-    const senderName = sender?.name || (senderRole === 'admin' ? 'An admin' : 'An employee');
     const mentionBody = text
-      ? `${senderName} mentioned you in an update on order ${orderNum}: "${text.slice(0, 80)}"`
-      : `${senderName} mentioned you in an update on order ${orderNum}.`;
+      ? `${senderName} mentioned you while updating ${clientName}'s order ${orderNum}: "${snippet}"`
+      : `${senderName} mentioned you in an update on ${clientName}'s order ${orderNum}.`;
     mentionIds.forEach((uid) =>
-      notify(uid, order._id, orderNum, 'message', 'You were mentioned', mentionBody, 'mentions'),
+      notify(uid, order._id, orderNum, 'message', `${senderName} mentioned you`, mentionBody, 'mentions'),
     );
   }
   const mentionedSet = new Set(mentionIds);
@@ -759,21 +815,21 @@ const addUpdate = async (orderId, senderId, senderRole, text, attachments = [], 
   // Notify the other party (skip anyone already notified via a mention).
   if (senderRole === 'employee' && order.assignedEmployee) {
     const body = text
-      ? `Employee posted an update on order ${orderNum}: "${text.slice(0, 80)}"`
-      : `Employee shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
+      ? `${senderName} posted an update on ${clientName}'s order ${orderNum}: "${snippet}"`
+      : `${senderName} shared ${filePhrase} on ${clientName}'s order ${orderNum}.`;
     // employee → notify all admins
     User.find({ role: 'admin' }).select('_id').then((admins) => {
       admins
         .filter((a) => !mentionedSet.has(a._id.toString()))
         .forEach((a) =>
-          notify(a._id, order._id, orderNum, 'message', 'New Update from Employee', body, 'teamUpdates'),
+          notify(a._id, order._id, orderNum, 'message', `New update from ${senderName}`, body, 'teamUpdates'),
         );
     }).catch(() => {});
   } else if (senderRole === 'admin' && order.assignedEmployee && !mentionedSet.has(order.assignedEmployee.toString())) {
     const body = text
-      ? `Admin posted an update on order ${orderNum}: "${text.slice(0, 80)}"`
-      : `Admin shared ${attachments.length} file${attachments.length > 1 ? 's' : ''} on order ${orderNum}.`;
-    notify(order.assignedEmployee, order._id, orderNum, 'message', 'New Update from Admin', body, 'teamUpdates');
+      ? `${senderName} posted an update on order ${orderNum} (${clientName}): "${snippet}"`
+      : `${senderName} shared ${filePhrase} on order ${orderNum} (${clientName}).`;
+    notify(order.assignedEmployee, order._id, orderNum, 'message', `New update from ${senderName}`, body, 'teamUpdates');
   }
 
   const populated = await order.populate(POPULATE_ORDER);
@@ -824,9 +880,11 @@ const adminSetDeliveryDate = async (orderId, deliveryDate) => {
   await order.save();
 
   const orderNum = `#${order._id.toString().slice(-6).toUpperCase()}`;
-  notify(order.clientId, order._id, orderNum, 'status', 'Delivery Date Updated', `Your delivery date has been updated to ${new Date(deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`, 'deliveryUpdated');
+  const fmtNewDelivery = new Date(deliveryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const { clientName } = await resolveOrderNames(order);
+  notify(order.clientId, order._id, orderNum, 'status', 'Delivery date updated', `The delivery date for your order ${orderNum} has been updated to ${fmtNewDelivery}.`, 'deliveryUpdated');
   if (order.assignedEmployee) {
-    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Delivery Date Updated', 'Admin has updated the delivery date for this order', 'deliveryUpdated');
+    notify(order.assignedEmployee, order._id, orderNum, 'status', 'Delivery date updated', `The delivery date for ${clientName}'s order ${orderNum} has been updated to ${fmtNewDelivery}.`, 'deliveryUpdated');
   }
 
   const populated = await order.populate(POPULATE_ORDER);

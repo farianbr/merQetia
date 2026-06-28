@@ -15,7 +15,52 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); letter-spacing: -.01e
 .page h1 { font-size: 1.6rem; font-weight: 700; margin: 0 0 .25rem; }
 
 /* Base button reset (variants live in primitives.css) */
-button { cursor: pointer; border: none; border-radius: var(--radius); font-size: .9rem; padding: .5rem 1.1rem; transition: background .15s; }
+button { cursor: pointer; border: none; border-radius: var(--radius); font-size: .9rem; padding: .5rem 1.1rem; transition: background .15s, color .15s, border-color .15s, box-shadow .15s; }
 /* Icons inside buttons must never be shrunk to 0 by a collapsed flex content box
    (e.g. fixed-size icon buttons that reset the default padding above). */
 button svg { flex-shrink: 0; }
+
+/* ════════════════════════════════════════════════════════════
+   MOTION — app-wide easing + mount transitions for a smoother feel.
+   Component-specific transitions live with their components; this
+   layer covers the shared building blocks (links, page shell,
+   overlays) so every route feels consistent.
+   ════════════════════════════════════════════════════════════ */
+
+/* Links ease their colour/opacity changes rather than snapping. */
+a { transition: color .15s ease, opacity .15s ease; }
+
+/* Every route's page shell fades + lifts in on mount, giving a gentle,
+   consistent entrance app-wide. Children that animate themselves still
+   do so on top of this. No fill-mode: once the animation ends the shell
+   must revert to transform:none, otherwise a lingering transform would
+   make it the containing block for position:fixed descendants (panels,
+   overlays, tooltips). */
+.page { animation: mq-page-in .32s cubic-bezier(.22,.61,.36,1); }
+.auth-card { animation: mq-page-in .38s cubic-bezier(.22,.61,.36,1); }
+
+@keyframes mq-page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal / overlay surfaces ease in instead of popping. */
+.modal-overlay { animation: mq-fade-in .18s ease; }
+.modal { animation: mq-pop-in .22s cubic-bezier(.22,.61,.36,1); }
+
+@keyframes mq-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mq-pop-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Accessibility: honour users who prefer reduced motion by collapsing
+   animations and transitions to near-instant. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

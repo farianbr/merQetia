@@ -13,11 +13,14 @@ import { useSocket } from "../../context/SocketContext";
 import ChatAttachments from "../../components/ChatAttachments";
 import ImageLightbox from "../../components/ImageLightbox";
 import MentionInput from "../../components/MentionInput";
+import CalendarView from "./CalendarView";
 import { highlightMentions, extractMentionIds } from "../../utils/mentions";
 import {
+  LuCalendarDays,
   LuChevronDown,
   LuFile,
   LuFilter,
+  LuLayoutGrid,
   LuMessageSquare,
   LuPaperclip,
   LuPlus,
@@ -351,16 +354,27 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
   const [lightbox, setLightbox] = useState(null);
   const [timeTip, setTimeTip] = useState(null);
   const timeTipTimer = useRef(null);
+  const messagesRef = useRef(null);
   const chatBottomRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // On open (or switching orders) jump straight to the latest message. A second
+  // pass on the next frame settles the scroll after the panel's slide-in and
+  // any late layout (avatars, attachments).
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: "instant" });
+    const el = messagesRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    const id = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(id);
   }, [order?._id]);
 
+  // New incoming/sent messages smooth-scroll into view.
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [order?.messages?.length]);
+  }, [order?.updates?.length]);
 
   // Internal admin↔employee thread — open from assignment onward so the team
   // can coordinate with the employee before they accept the order.
@@ -409,33 +423,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
         {/* Header */}
         <div className="mq-panel-header">
           <span className="mq-panel-title">{serviceName}</span>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "28px",
-              height: "28px",
-              borderRadius: "50%",
-              background: "transparent",
-              border: "none",
-              padding: 0,
-              color: "#6b7280",
-              cursor: "pointer",
-              flexShrink: 0,
-              transition: "background .12s, color .12s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#f3f4f6";
-              e.currentTarget.style.color = "#374151";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "#6b7280";
-            }}
-          >
+          <button className="mq-panel-close" onClick={onClose} aria-label="Close">
             <LuX size={16} />
           </button>
         </div>
@@ -451,7 +439,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
         </div>
 
         {/* Messages */}
-        <div className="mq-panel-messages" ref={chatBottomRef}>
+        <div className="mq-panel-messages" ref={messagesRef}>
           {!canMessage ? (
             <div className="mq-panel-placeholder">
               <LuMessageSquare size={32} color="#d1d5db" />
@@ -473,18 +461,14 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
                   .slice(0, 2)
                   .join("")
                   .toUpperCase();
-                const avatarBg =
-                  msg.senderRole === "admin" ? "#1f8cb4" : "#1f8cb4";
                 return (
-                  <div key={msg._id} className="mq-msg">
-                    <div className="mq-msg-header">
-                      <span
-                        className="mq-msg-avatar"
-                        style={{ background: avatarBg }}
-                      >
-                        {initials}
-                      </span>
-                      <div className="mq-msg-info">
+                  <div
+                    key={msg._id}
+                    className={`mq-msg${msg.senderRole === "admin" ? " mq-msg--mine" : ""}`}
+                  >
+                    <span className="mq-msg-avatar">{initials}</span>
+                    <div className="mq-msg-main">
+                      <div className="mq-msg-meta">
                         <span className="mq-msg-sender">{senderName}</span>
                         <span
                           className="mq-msg-time"
@@ -509,8 +493,6 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
                           {fmtTimeAgo(msg.createdAt)}
                         </span>
                       </div>
-                    </div>
-                    <div className="mq-msg-body">
                       {msg.text && <p className="mq-msg-text">{highlightMentions(msg.text, msg.mentions)}</p>}
                       <ChatAttachments
                         attachments={msg.attachments}
@@ -1215,6 +1197,7 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [panelOrder, setPanelOrder] = useState(null);
+  const [view, setView] = useState("board"); // "board" | "calendar"
   const pendingOpenRef = useRef(null);
 
   /* ── Column config — init from saved prefs ── */
@@ -1469,7 +1452,32 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="mq-board">
+        <div className="mq-view-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "board"}
+            className={`mq-view-tab${view === "board" ? " mq-view-tab--active" : ""}`}
+            onClick={() => setView("board")}
+          >
+            <LuLayoutGrid size={16} />
+            Board
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "calendar"}
+            className={`mq-view-tab${view === "calendar" ? " mq-view-tab--active" : ""}`}
+            onClick={() => setView("calendar")}
+          >
+            <LuCalendarDays size={16} />
+            Calendar
+          </button>
+        </div>
+
+        {view === "calendar" && <CalendarView />}
+
+        <div className="mq-board" style={{ display: view === "board" ? undefined : "none" }}>
           {/* Column picker dropdown — floats at board top-right, triggered by + button in table header */}
           <div
             className="mq-col-picker-wrap"

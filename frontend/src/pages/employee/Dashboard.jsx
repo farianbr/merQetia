@@ -7,10 +7,12 @@ import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
 import ImageLightbox from '../../components/ImageLightbox';
 import MentionInput from '../../components/MentionInput';
+import CalendarView from '../admin/CalendarView';
 import { highlightMentions, extractMentionIds } from '../../utils/mentions';
 import {
   LuMessageSquare, LuFile, LuPaperclip,
-  LuChevronDown, LuX, LuArrowRight, LuPlus,
+  LuChevronDown, LuX, LuPlus, LuFilter,
+  LuLayoutGrid, LuCalendarDays,
 } from 'react-icons/lu';
 
 const STATUS_CONFIG = {
@@ -56,6 +58,7 @@ const COLUMN_DEFS = [
     label: "Client",
     sortable: true,
     sortType: "alpha",
+    filterType: "client",
     defaultVisible: true,
   },
   {
@@ -63,6 +66,14 @@ const COLUMN_DEFS = [
     label: "Status",
     sortable: true,
     sortType: "status",
+    filterType: "status",
+    defaultVisible: true,
+  },
+  {
+    key: "placed",
+    label: "Placed",
+    sortable: true,
+    sortType: "placed",
     defaultVisible: true,
   },
   {
@@ -86,6 +97,32 @@ const STATUS_TIMELINE = [
   "completed",
   "rejected",
 ];
+
+/** Status shown to the user, promoting accepted-but-past-due orders to "overdue". */
+function effectiveStatus(o) {
+  if (o.status === 'accepted' && o.deliveryDate) {
+    const due = new Date(o.deliveryDate);
+    due.setHours(23, 59, 59, 999);
+    if (due < new Date()) return 'overdue';
+  }
+  return o.status;
+}
+
+/** The discrete value an order contributes to a column's filter (id/key + label). */
+function filterValueOf(o, filterType) {
+  switch (filterType) {
+    case 'status': {
+      const st = effectiveStatus(o);
+      return { value: st, label: STATUS_CONFIG[st]?.label || st };
+    }
+    case 'client':
+      return o.clientId?._id
+        ? { value: o.clientId._id, label: o.clientId.name || '—' }
+        : { value: 'none', label: '—' };
+    default:
+      return { value: '', label: '' };
+  }
+}
 
 function fmtTimeAgo(iso) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -126,13 +163,24 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
   const [lightbox, setLightbox] = useState(null);
   const [timeTip, setTimeTip] = useState(null);
   const timeTipTimer = useRef(null);
+  const messagesRef = useRef(null);
   const chatBottomRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // On open (or switching orders) jump straight to the latest message. A second
+  // pass on the next frame settles the scroll after the panel's slide-in and
+  // any late layout (avatars, attachments).
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'instant' });
+    const el = messagesRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    const id = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(id);
   }, [order?._id]);
 
+  // New incoming/sent messages smooth-scroll into view.
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [order?.updates?.length]);
@@ -178,13 +226,9 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
       <div className="mq-updates-panel">
         <div className="mq-panel-header">
           <span className="mq-panel-title">{serviceName}</span>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', background: 'transparent', border: 'none', padding: 0, color: '#6b7280', cursor: 'pointer', flexShrink: 0, transition: 'background .12s, color .12s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.color = '#374151'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#6b7280'; }}
-          ><LuX size={16} /></button>
+          <button className="mq-panel-close" onClick={onClose} aria-label="Close">
+            <LuX size={16} />
+          </button>
         </div>
 
         <div className="mq-panel-tabs">
@@ -193,7 +237,7 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
           </span>
         </div>
 
-        <div className="mq-panel-messages">
+        <div className="mq-panel-messages" ref={messagesRef}>
           {!canMessage ? (
             <div className="mq-panel-placeholder">
               <LuMessageSquare size={32} color="#d1d5db" />
@@ -210,12 +254,11 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
                 const isMine = msg.senderRole === 'employee';
                 const senderName = msg.sender?.name || (isMine ? 'You' : '—');
                 const initials = senderName.split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'Y';
-                const avatarBg = msg.senderRole === 'admin' ? '#1f8cb4' : '#1f8cb4';
                 return (
-                  <div key={msg._id} className="mq-msg">
-                    <div className="mq-msg-header">
-                      <span className="mq-msg-avatar" style={{ background: avatarBg }}>{initials}</span>
-                      <div className="mq-msg-info">
+                  <div key={msg._id} className={`mq-msg${isMine ? ' mq-msg--mine' : ''}`}>
+                    <span className="mq-msg-avatar">{initials}</span>
+                    <div className="mq-msg-main">
+                      <div className="mq-msg-meta">
                         <span className="mq-msg-sender">{isMine ? 'You' : senderName}</span>
                         <span
                           className="mq-msg-time"
@@ -223,8 +266,6 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
                           onMouseLeave={() => { setTimeTip((t) => t ? { ...t, out: true } : null); timeTipTimer.current = setTimeout(() => setTimeTip(null), 150); }}
                         >{fmtTimeAgo(msg.createdAt)}</span>
                       </div>
-                    </div>
-                    <div className="mq-msg-body">
                       {msg.text && <p className="mq-msg-text">{highlightMentions(msg.text, msg.mentions)}</p>}
                       <ChatAttachments attachments={msg.attachments} onImageClick={(src, name) => setLightbox({ src, name })} />
                     </div>
@@ -283,6 +324,103 @@ function UpdatesPanel({ order, onClose, onMessagesUpdate }) {
   );
 }
 
+/* --- Column Filter ------------------------------------------------ */
+function ColumnFilter({ options, selected, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const active = selected.length > 0;
+
+  const toggleMenu = (e) => {
+    e.stopPropagation();
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 4, left: r.left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
+
+  const toggleVal = (val) => {
+    const set = new Set(selected);
+    if (set.has(val)) set.delete(val);
+    else set.add(val);
+    onChange([...set]);
+  };
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className={`mq-th-filter${active ? ' mq-th-filter--active' : ''}`}
+        onClick={toggleMenu}
+        onMouseDown={(e) => e.stopPropagation()}
+        title={active ? `Filtered · ${selected.length}` : 'Filter'}
+      >
+        <LuFilter size={11} />
+        {active && <span className="mq-th-filter-dot" />}
+      </button>
+      {open && pos && (
+        <>
+          <div
+            className="mq-filter-overlay"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+            }}
+          />
+          <div
+            className="mq-filter-menu"
+            style={{ top: pos.top, left: pos.left }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mq-filter-menu-head">
+              <span>Filter</span>
+              {active && (
+                <button
+                  type="button"
+                  className="mq-filter-clear"
+                  onClick={() => onChange([])}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {options.length === 0 ? (
+              <div className="mq-filter-empty">No values</div>
+            ) : (
+              options.map((opt) => (
+                <label key={opt.value} className="mq-filter-option">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(opt.value)}
+                    onChange={() => toggleVal(opt.value)}
+                  />
+                  <span className="mq-filter-option-label">{opt.label}</span>
+                </label>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 /* --- Order Group -------------------------------------------------- */
 function EmpOrderGroup({
   group,
@@ -293,6 +431,8 @@ function EmpOrderGroup({
   visibleCols,
   sortState,
   onSort,
+  filters,
+  onFilterChange,
   onColDragStart,
   onColDrop,
   onAddColClick,
@@ -312,21 +452,48 @@ function EmpOrderGroup({
     [colOrder, visibleCols],
   );
 
-  const getEffectiveStatus = useCallback((o) => {
-    if (o.status === 'accepted' && o.deliveryDate) {
-      const due = new Date(o.deliveryDate);
-      due.setHours(23, 59, 59, 999);
-      if (due < new Date()) return 'overdue';
+  const getEffectiveStatus = effectiveStatus;
+
+  // Distinct filter options per filterable column, drawn from this group's orders.
+  const filterOptions = useMemo(() => {
+    const maps = {};
+    groupOrders.forEach((o) => {
+      COLUMN_DEFS.forEach((def) => {
+        if (!def.filterType) return;
+        const { value, label } = filterValueOf(o, def.filterType);
+        (maps[def.key] ||= new Map()).set(value, label);
+      });
+    });
+    const out = {};
+    for (const [key, m] of Object.entries(maps)) {
+      out[key] = [...m.entries()]
+        .map(([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label));
     }
-    return o.status;
-  }, []);
+    return out;
+  }, [groupOrders]);
+
+  // Apply this group's active filters before sorting.
+  const filteredOrders = useMemo(() => {
+    const entries = Object.entries(filters).filter(
+      ([, vals]) => vals && vals.length > 0,
+    );
+    if (entries.length === 0) return groupOrders;
+    return groupOrders.filter((o) =>
+      entries.every(([colKey, vals]) => {
+        const def = COLUMN_DEFS.find((c) => c.key === colKey);
+        if (!def?.filterType) return true;
+        return vals.includes(filterValueOf(o, def.filterType).value);
+      }),
+    );
+  }, [groupOrders, filters]);
 
   const sortedOrders = useMemo(() => {
     const { col, dir } = sortState;
-    if (!col) return groupOrders;
+    if (!col) return filteredOrders;
     const def = COLUMN_DEFS.find((c) => c.key === col);
-    if (!def) return groupOrders;
-    return [...groupOrders].sort((a, b) => {
+    if (!def) return filteredOrders;
+    return [...filteredOrders].sort((a, b) => {
       if (def.sortType === 'alpha') {
         let av = '',
           bv = '';
@@ -358,28 +525,36 @@ function EmpOrderGroup({
         const bc = b.updates?.length || 0;
         return dir === 'asc' ? ac - bc : bc - ac;
       }
+      if (def.sortType === 'placed') {
+        const at = a.createdAt ? new Date(a.createdAt).getTime() : Infinity;
+        const bt = b.createdAt ? new Date(b.createdAt).getTime() : Infinity;
+        return dir === 'asc' ? at - bt : bt - at;
+      }
       return 0;
     });
-  }, [groupOrders, sortState, getEffectiveStatus]);
+  }, [filteredOrders, sortState, getEffectiveStatus]);
 
+  // Footer summary reflects the rows actually shown (after filtering).
   const statusCounts = useMemo(
     () =>
-      groupOrders.reduce((acc, o) => {
+      filteredOrders.reduce((acc, o) => {
         const st = getEffectiveStatus(o);
         acc[st] = (acc[st] || 0) + 1;
         return acc;
       }, {}),
-    [groupOrders, getEffectiveStatus],
+    [filteredOrders, getEffectiveStatus],
   );
 
   const dateRange = useMemo(() => {
-    const dates = groupOrders.filter((o) => o.deliveryDate).map((o) => new Date(o.deliveryDate));
+    const dates = filteredOrders.filter((o) => o.deliveryDate).map((o) => new Date(o.deliveryDate));
     if (!dates.length) return null;
     const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const min = new Date(Math.min(...dates));
     const max = new Date(Math.max(...dates));
     return min.getTime() === max.getTime() ? fmt(min) : `${fmt(min)} – ${fmt(max)}`;
-  }, [groupOrders]);
+  }, [filteredOrders]);
+
+  const hasFilters = Object.values(filters).some((v) => v && v.length > 0);
 
   return (
     <div className="mq-group">
@@ -389,7 +564,11 @@ function EmpOrderGroup({
           style={{ color: group.color, transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform .18s', flexShrink: 0 }}
         />
         <span className="mq-group-name" style={{ color: group.color }}>{group.label}</span>
-        <span className="mq-group-count">{groupOrders.length}</span>
+        <span className="mq-group-count">
+          {hasFilters
+            ? `${filteredOrders.length}/${groupOrders.length}`
+            : groupOrders.length}
+        </span>
       </div>
 
       {!collapsed && (
@@ -427,6 +606,13 @@ function EmpOrderGroup({
                           <span className="mq-sort-icon">
                             {isSorted ? (sortState.dir === 'asc' ? '↑' : '↓') : '↕'}
                           </span>
+                        )}
+                        {def.filterType && (
+                          <ColumnFilter
+                            options={filterOptions[colKey] || []}
+                            selected={filters[colKey] || []}
+                            onChange={(vals) => onFilterChange(colKey, vals)}
+                          />
                         )}
                       </span>
                     </th>
@@ -500,6 +686,14 @@ function EmpOrderGroup({
                                 <StatusPill status={order.status} deliveryDate={order.deliveryDate} />
                               </td>
                             );
+                          case 'placed':
+                            return (
+                              <td key={colKey} className="mq-td mq-td-date">
+                                {order.createdAt
+                                  ? new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                  : '—'}
+                              </td>
+                            );
                           case 'date':
                             return (
                               <td key={colKey} className="mq-td mq-td-date">
@@ -534,7 +728,7 @@ function EmpOrderGroup({
                         >
                           {Object.entries(statusCounts).map(([st, count]) => {
                             const cfg = STATUS_CONFIG[st] || { label: st, color: '#9ca3af' };
-                            const total = groupOrders.length;
+                            const total = filteredOrders.length;
                             return (
                               <div
                                 key={st}
@@ -595,6 +789,7 @@ export default function EmployeeDashboard() {
   const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [panelOrder, setPanelOrder] = useState(null);
+  const [view, setView] = useState('board'); // 'board' | 'calendar'
   const pendingOpenRef = useRef(null);
 
   /* ── Column config — init from saved prefs ── */
@@ -612,15 +807,38 @@ export default function EmployeeDashboard() {
   });
 
   const [visibleCols, setVisibleCols] = useState(() => {
-    if (prefs?.visibleCols?.length) return new Set(prefs.visibleCols);
+    if (prefs?.visibleCols?.length) {
+      const set = new Set(prefs.visibleCols);
+      // Columns introduced after the prefs were saved (absent from the saved
+      // order) default to visible — so new columns show up without wiping the
+      // employee's earlier show/hide choices for existing ones.
+      const savedOrder = new Set(prefs.colOrder || []);
+      COLUMN_DEFS.forEach((c) => {
+        if (c.defaultVisible && !savedOrder.has(c.key)) set.add(c.key);
+      });
+      return set;
+    }
     return DEFAULT_VISIBLE_COLS;
   });
 
-  const [sortState, setSortState] = useState(() => {
-    if (prefs?.sortCol)
-      return { col: prefs.sortCol, dir: prefs.sortDir || 'asc' };
-    return { col: null, dir: 'asc' };
+  // Sort & filter are per-group (keyed by group.key) so acting on one group's
+  // column doesn't disturb the others. Column order/visibility stay global.
+  const [sortByGroup, setSortByGroup] = useState(() => {
+    if (prefs?.sortByGroup && typeof prefs.sortByGroup === 'object')
+      return prefs.sortByGroup;
+    // Migrate the old single global sort onto every group.
+    if (prefs?.sortCol) {
+      const legacy = { col: prefs.sortCol, dir: prefs.sortDir || 'asc' };
+      return Object.fromEntries(EMP_GROUPS.map((g) => [g.key, legacy]));
+    }
+    return {};
   });
+
+  const [filterByGroup, setFilterByGroup] = useState(() =>
+    prefs?.filterByGroup && typeof prefs.filterByGroup === 'object'
+      ? prefs.filterByGroup
+      : {},
+  );
 
   const [showColPicker, setShowColPicker] = useState(false);
   const [colPickerPos, setColPickerPos] = useState({ top: 0, left: 0 });
@@ -640,17 +858,29 @@ export default function EmployeeDashboard() {
       saveDashboardPrefs({
         colOrder,
         visibleCols: [...visibleCols],
-        sortCol: sortState.col,
-        sortDir: sortState.dir,
+        sortByGroup,
+        filterByGroup,
       }).catch(() => {});
     }, 800);
-  }, [colOrder, visibleCols, sortState]);
+  }, [colOrder, visibleCols, sortByGroup, filterByGroup]);
 
-  const handleSort = useCallback((colKey) => {
-    setSortState((prev) => {
-      if (prev.col !== colKey) return { col: colKey, dir: 'asc' };
-      if (prev.dir === 'asc') return { col: colKey, dir: 'desc' };
-      return { col: null, dir: 'asc' };
+  const handleSort = useCallback((groupKey, colKey) => {
+    setSortByGroup((prev) => {
+      const cur = prev[groupKey] || { col: null, dir: 'asc' };
+      let next;
+      if (cur.col !== colKey) next = { col: colKey, dir: 'asc' };
+      else if (cur.dir === 'asc') next = { col: colKey, dir: 'desc' };
+      else next = { col: null, dir: 'asc' };
+      return { ...prev, [groupKey]: next };
+    });
+  }, []);
+
+  const handleFilterChange = useCallback((groupKey, colKey, values) => {
+    setFilterByGroup((prev) => {
+      const cur = { ...(prev[groupKey] || {}) };
+      if (!values || values.length === 0) delete cur[colKey];
+      else cur[colKey] = values;
+      return { ...prev, [groupKey]: cur };
     });
   }, []);
 
@@ -784,23 +1014,34 @@ export default function EmployeeDashboard() {
             <h1>My Work</h1>
             <p className="subtitle">Welcome back, {user?.name?.split(' ')[0]}</p>
           </div>
-          <Link
-            to="/employee/orders"
-            className="btn-secondary"
-            style={{
-              textDecoration: "none",
-              fontSize: ".85rem",
-              fontWeight: 600,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: ".4rem",
-            }}
-          >
-            View All Orders <LuArrowRight size={14} />
-          </Link>
         </div>
 
-        <div className="mq-board">
+        <div className="mq-view-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'board'}
+            className={`mq-view-tab${view === 'board' ? ' mq-view-tab--active' : ''}`}
+            onClick={() => setView('board')}
+          >
+            <LuLayoutGrid size={16} />
+            Board
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'calendar'}
+            className={`mq-view-tab${view === 'calendar' ? ' mq-view-tab--active' : ''}`}
+            onClick={() => setView('calendar')}
+          >
+            <LuCalendarDays size={16} />
+            Calendar
+          </button>
+        </div>
+
+        {view === 'calendar' && <CalendarView />}
+
+        <div className="mq-board" style={{ display: view === 'board' ? undefined : 'none' }}>
           {/* Column picker dropdown */}
           <div
             className="mq-col-picker-wrap"
@@ -831,8 +1072,12 @@ export default function EmployeeDashboard() {
               activeUpdateId={panelOrder?._id}
               colOrder={colOrder}
               visibleCols={visibleCols}
-              sortState={sortState}
-              onSort={handleSort}
+              sortState={sortByGroup[group.key] || { col: null, dir: 'asc' }}
+              onSort={(colKey) => handleSort(group.key, colKey)}
+              filters={filterByGroup[group.key] || {}}
+              onFilterChange={(colKey, vals) =>
+                handleFilterChange(group.key, colKey, vals)
+              }
               onColDragStart={handleColDragStart}
               onColDrop={handleColDrop}
               onAddColClick={handleAddColClick}

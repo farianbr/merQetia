@@ -86,6 +86,7 @@ app.use('/api/support', require('./routes/supportRoutes'));
 app.use('/api/departments', require('./routes/departmentRoutes'));
 app.use('/api/team', require('./routes/teamRoutes'));
 app.use('/api/integrations', require('./routes/integrationRoutes'));
+app.use('/api/calendar', require('./routes/calendarRoutes'));
 
 // -- Health check
 app.get('/', (req, res) => {
