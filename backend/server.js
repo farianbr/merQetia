@@ -68,12 +68,9 @@ const authLimiter = rateLimit({
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// -- Static file serving for message attachments
-// Override Helmet's Cross-Origin-Resource-Policy so the frontend (different port) can load images
-app.use('/uploads', (req, res, next) => {
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  next();
-}, express.static(require('path').join(__dirname, 'uploads')));
+// -- Files are stored in Cloudflare R2: avatars in the public bucket (loaded
+// directly from R2_PUBLIC_URL) and attachments in the private bucket (streamed
+// via authorized routes). Nothing is served from local disk.
 
 // -- Routes
 app.use('/api/auth', require('./routes/authRoutes'));

@@ -12,6 +12,7 @@ import {
   LuChartBar, LuDollarSign, LuUsers, LuUserCheck, LuSettings, LuLogOut, LuBell,
   LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu, LuLifeBuoy,
 } from 'react-icons/lu';
+import { mediaUrl } from '../utils/media';
 
 function mapOrders(r) {
   return (r.data.orders || r.data).map((o) => ({
@@ -33,8 +34,6 @@ function mapTickets(r) {
     _id: t._id, ticketId: t.ticketId, subject: t.subject, clientName: t.clientName,
   }));
 }
-
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 const NAV_ITEMS = [
   { path: '/admin',            label: 'Dashboard', Icon: LuLayoutDashboard, exact: true },
@@ -138,7 +137,7 @@ function AdminLayoutInner({ children }) {
     ? user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : 'A';
 
-  const avatarSrc = user?.avatar ? `${API_BASE}${user.avatar}` : null;
+  const avatarSrc = mediaUrl(user?.avatar);
 
   // Memoize to avoid re-computing on every render
   const navItems = useMemo(() => NAV_ITEMS, []);

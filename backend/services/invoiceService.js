@@ -173,8 +173,17 @@ const createPartialInvoice = async ({ orderId, amount, type, notes }) => {
     throw err;
   }
 
-  if (amount > order.totalPrice) {
-    const err = new Error('Invoice amount cannot exceed order total price');
+  // The combined value of all invoices for an order may not exceed its total.
+  const existing = await Invoice.find({ orderId }).select('amount');
+  const alreadyInvoiced = existing.reduce((sum, inv) => sum + inv.amount, 0);
+  const remaining = order.totalPrice - alreadyInvoiced;
+
+  if (amount > remaining) {
+    const err = new Error(
+      remaining <= 0
+        ? 'This order is already fully invoiced'
+        : `Invoice amount cannot exceed the remaining billable amount of €${remaining.toFixed(2)}`
+    );
     err.statusCode = 400;
     throw err;
   }

@@ -1,11 +1,13 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
-const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus, scheduleMeeting, rescheduleMeeting, cancelMeeting } = require('../controllers/orderController');
+const { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, streamOrderFile, getParticipants, setDeliveryDate, resetStatus, scheduleMeeting, rescheduleMeeting, cancelMeeting } = require('../controllers/orderController');
 const { protect } = require('../middlewares/authMiddleware');
 const { authorize } = require('../middlewares/roleMiddleware');
 const { validateOrder, validateAssign } = require('../middlewares/validators');
-const { upload } = require('../middlewares/upload');
+const { upload, persistUploads } = require('../middlewares/upload');
+
+const orderFilePrefix = (req) => `orders/${req.params.id}`;
 
 // Placing an order triggers an AI summary call — bound how often a client can do
 // it to keep AI usage (and cost) from being abused.
@@ -51,10 +53,13 @@ router.patch('/:id/request-changes', protect, authorize('client'), changeRequest
 router.patch('/:id/force-complete', protect, authorize('admin'), forceComplete);
 
 // Client or employee posts a message in the order conversation
-router.post('/:id/messages', protect, authorize('client', 'employee'), upload.array('files', 5), postMessage);
+router.post('/:id/messages', protect, authorize('client', 'employee'), upload.array('files', 5), persistUploads(orderFilePrefix), postMessage);
 
 // Admin or employee posts an internal update (admin ↔ employee only)
-router.post('/:id/updates', protect, authorize('admin', 'employee'), upload.array('files', 5), postUpdate);
+router.post('/:id/updates', protect, authorize('admin', 'employee'), upload.array('files', 5), persistUploads(orderFilePrefix), postUpdate);
+
+// Stream a private attachment (authorized per-order; client-chat vs staff-only updates enforced inside)
+router.get('/:id/files/:filename', protect, authorize('admin', 'employee', 'client'), streamOrderFile);
 
 // Admin or assigned employee — staff that can be @mentioned on this order's updates
 router.get('/:id/participants', protect, authorize('admin', 'employee'), getParticipants);

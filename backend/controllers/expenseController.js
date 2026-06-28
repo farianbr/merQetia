@@ -4,6 +4,8 @@ const {
   getExpenseById,
   updateExpense,
   deleteExpense,
+  addTransaction,
+  deleteTransaction,
 } = require('../services/expenseService');
 
 /**
@@ -12,13 +14,20 @@ const {
  */
 const create = async (req, res, next) => {
   try {
-    const { title, amount, type, date, notes, relatedOrder } = req.body;
+    const {
+      title, amount, type, date, notes, relatedOrder,
+      billingCycle, status, employeeName, employee, vendor, renewalDate, category,
+    } = req.body;
 
-    if (!title || amount == null || !type) {
-      return res.status(400).json({ success: false, message: 'title, amount, and type are required' });
+    if (!title || !type) {
+      return res.status(400).json({ success: false, message: 'title and type are required' });
     }
 
-    const expense = await createExpense({ title, amount, type, date, notes, relatedOrder });
+    const expense = await createExpense({
+      title, amount, type, date, notes, relatedOrder,
+      billingCycle, status, employeeName, employee: employee || null,
+      vendor, renewalDate, category,
+    });
     res.status(201).json({ success: true, expense });
   } catch (err) {
     next(err);
@@ -35,7 +44,7 @@ const getAll = async (req, res, next) => {
 
     const result = await getAllExpenses({
       page: parseInt(page) || 1,
-      limit: parseInt(limit) || 20,
+      limit: parseInt(limit) || 50,
       type,
       startDate,
       endDate,
@@ -86,4 +95,31 @@ const remove = async (req, res, next) => {
   }
 };
 
-module.exports = { create, getAll, getOne, update, remove };
+/**
+ * POST /api/expenses/:id/transactions
+ * Admin only — record a payment/transaction on an expense
+ */
+const addTx = async (req, res, next) => {
+  try {
+    const { amount, date, method, notes } = req.body;
+    const expense = await addTransaction(req.params.id, { amount, date, method, notes });
+    res.status(201).json({ success: true, expense });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/expenses/:id/transactions/:txId
+ * Admin only — remove a transaction from an expense
+ */
+const removeTx = async (req, res, next) => {
+  try {
+    const expense = await deleteTransaction(req.params.id, req.params.txId);
+    res.status(200).json({ success: true, expense });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { create, getAll, getOne, update, remove, addTx, removeTx };

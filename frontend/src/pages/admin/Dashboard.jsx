@@ -24,8 +24,7 @@ import {
   LuX,
 } from "react-icons/lu";
 
-const API_BASE =
-  import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
+import { mediaUrl } from "../../utils/media";
 
 const STATUS_CONFIG = {
   placed: { label: "Not Started", color: "#9ca3af" },
@@ -323,7 +322,7 @@ function AssignSelect({ orderId, employees, onAssign }) {
                 >
                   {emp.avatar ? (
                     <img
-                      src={`${API_BASE}${emp.avatar}`}
+                      src={mediaUrl(emp.avatar)}
                       alt={emp.name}
                       className="mq-assign-option-avatar"
                     />

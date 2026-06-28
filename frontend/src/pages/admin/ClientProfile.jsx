@@ -6,7 +6,7 @@ import {
   LuCircleCheck, LuClock, LuFileText,
 } from 'react-icons/lu';
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+import { mediaUrl } from '../../utils/media';
 
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',     bg: '#fef3c7', color: '#b45309' },
@@ -49,7 +49,7 @@ export default function AdminClientProfile() {
   if (!data?.client) return <div className="page"><p className="page-error">Client not found.</p></div>;
 
   const { client, orders = [], invoices = [] } = data;
-  const avatarSrc = client.avatar ? `${API_BASE}${client.avatar}` : null;
+  const avatarSrc = mediaUrl(client.avatar);
 
   const totalOrders = orders.length;
   const activeOrders = orders.filter((o) => ['assigned', 'accepted', 'pending'].includes(o.status)).length;

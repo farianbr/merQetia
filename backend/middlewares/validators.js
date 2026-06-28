@@ -94,10 +94,17 @@ exports.validateStatus = (req, res, next) => {
 exports.validateExpense = (req, res, next) => {
   const { title, amount, type } = req.body;
   if (!title || !String(title).trim()) return fail(res, 'Title is required');
+  if (amount !== undefined && amount !== null && (isNaN(Number(amount)) || Number(amount) < 0))
+    return fail(res, 'Amount must be a non-negative number');
+  if (!['payroll', 'subscription', 'one-time', 'tooling', 'marketing', 'other'].includes(type))
+    return fail(res, 'Invalid expense type');
+  next();
+};
+
+exports.validateTransaction = (req, res, next) => {
+  const { amount } = req.body;
   if (amount === undefined || amount === null || isNaN(Number(amount)) || Number(amount) < 0)
     return fail(res, 'Amount must be a non-negative number');
-  if (!['payroll', 'subscription', 'tooling', 'marketing', 'other'].includes(type))
-    return fail(res, 'Invalid expense type');
   next();
 };
 

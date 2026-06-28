@@ -1,4 +1,5 @@
 const teamService = require('../services/teamService');
+const { getObject } = require('../utils/storage');
 
 /** Parse a mentions field that may arrive as an array or a JSON string (multipart). */
 const parseMentions = (raw) => {
@@ -59,7 +60,8 @@ const postMessage = async (req, res, next) => {
     const attachments = files.map((f) => ({
       originalName: f.originalname,
       filename: f.filename,
-      url: `/uploads/orders/${req.params.id}/${f.filename}`,
+      // Authorized proxy path (no /api prefix; the SPA's axios base adds it).
+      url: `/team/channels/${req.params.id}/files/${f.filename}`,
       mimetype: f.mimetype,
       size: f.size,
     }));
@@ -70,6 +72,23 @@ const postMessage = async (req, res, next) => {
       mentions: parseMentions(req.body.mentions),
     });
     res.status(201).json({ success: true, message });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** GET /api/team/channels/:id/files/:filename — stream a private channel attachment */
+const streamChannelFile = async (req, res, next) => {
+  try {
+    const { id, filename } = req.params;
+    await teamService.assertChannelFileAccess(id, req.user, filename);
+
+    const { stream, contentType, contentLength } = await getObject(`team/${id}/${filename}`);
+    res.setHeader('Content-Type', contentType);
+    if (contentLength != null) res.setHeader('Content-Length', contentLength);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    stream.on('error', next);
+    stream.pipe(res);
   } catch (err) {
     next(err);
   }
@@ -116,6 +135,7 @@ module.exports = {
   getMessages,
   getMentionables,
   postMessage,
+  streamChannelFile,
   scheduleMeeting,
   rescheduleMeeting,
   cancelMeeting,

@@ -1,6 +1,6 @@
 import { LuZoomIn, LuDownload } from 'react-icons/lu';
-
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+import AuthedImage from './AuthedImage';
+import { downloadMedia } from '../utils/media';
 
 const FILE_META = {
   'application/pdf':   { label: 'PDF',  color: '#ef4444' },
@@ -24,18 +24,16 @@ export default function ChatAttachments({ attachments, onImageClick }) {
   return (
     <div className="chat-att-list">
       {attachments.map((att, i) => {
-        const src = `${BASE_URL}${att.url}`;
-
         if (att.mimetype?.startsWith('image/')) {
           return (
             <button
               key={i}
               type="button"
               className="chat-att-img-btn"
-              onClick={() => onImageClick?.(src, att.originalName)}
+              onClick={() => onImageClick?.(att.url, att.originalName)}
               title={`View ${att.originalName}`}
             >
-              <img src={src} alt={att.originalName} className="chat-att-thumb" loading="lazy" />
+              <AuthedImage src={att.url} alt={att.originalName} className="chat-att-thumb" />
               <span className="chat-att-img-overlay">
                 <LuZoomIn size={18} />
               </span>
@@ -45,13 +43,12 @@ export default function ChatAttachments({ attachments, onImageClick }) {
 
         const meta = FILE_META[att.mimetype] || { label: 'FILE', color: '#6b7280' };
         return (
-          <a
+          <button
             key={i}
-            href={src}
-            download={att.originalName}
-            target="_blank"
-            rel="noreferrer"
+            type="button"
+            onClick={() => downloadMedia(att.url, att.originalName)}
             className="chat-att-file-banner"
+            title={`Download ${att.originalName}`}
           >
             <span className="chat-att-file-badge" style={{ background: meta.color }}>
               {meta.label}
@@ -63,7 +60,7 @@ export default function ChatAttachments({ attachments, onImageClick }) {
               )}
             </div>
             <LuDownload className="chat-att-dl-icon" size={15} />
-          </a>
+          </button>
         );
       })}
     </div>

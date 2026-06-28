@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { register, login, getMe, updateProfile, updateAvatar, saveDashboardPrefs } = require('../controllers/authController');
 const { protect } = require('../middlewares/authMiddleware');
-const { uploadAvatar } = require('../middlewares/upload');
+const { uploadAvatar, persistAvatar } = require('../middlewares/upload');
 const { validateRegister, validateLogin } = require('../middlewares/validators');
 
 // Public routes
@@ -18,6 +18,6 @@ router.post('/avatar', protect, (req, res, next) => {
     if (err) return res.status(400).json({ success: false, message: err.message });
     next();
   });
-}, updateAvatar);
+}, persistAvatar, updateAvatar);
 
 module.exports = router;

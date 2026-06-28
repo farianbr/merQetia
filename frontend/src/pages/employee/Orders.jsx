@@ -6,6 +6,8 @@ import {
 } from '../../api/orders';
 import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
+import AuthedImage from '../../components/AuthedImage';
+import { downloadMedia } from '../../utils/media';
 import ImageLightbox from '../../components/ImageLightbox';
 import ConversationEvent from '../../components/ConversationEvent';
 import MeetingMessage from '../../components/MeetingMessage';
@@ -706,7 +708,6 @@ export default function EmployeeOrders() {
       )}
 
       {mediaModal && (() => {
-        const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
         const allAttachments = (activeOrder?.messages || []).flatMap((msg) => msg.attachments || []);
         const images = allAttachments.filter((a) => a.mimetype?.startsWith('image/'));
         const files  = allAttachments.filter((a) => !a.mimetype?.startsWith('image/'));
@@ -725,18 +726,15 @@ export default function EmployeeOrders() {
                     <>
                       <p className="modal-media-section-label">Images</p>
                       <div className="media-grid">
-                        {images.map((att, i) => {
-                          const src = `${BASE}${att.url}`;
-                          return (
-                            <button
-                              key={i}
-                              className="media-grid-item"
-                              onClick={() => { setMediaModal(false); setLightbox({ src, name: att.originalName }); }}
-                            >
-                              <img src={src} alt={att.originalName} />
-                            </button>
-                          );
-                        })}
+                        {images.map((att, i) => (
+                          <button
+                            key={i}
+                            className="media-grid-item"
+                            onClick={() => { setMediaModal(false); setLightbox({ src: att.url, name: att.originalName }); }}
+                          >
+                            <AuthedImage src={att.url} alt={att.originalName} />
+                          </button>
+                        ))}
                       </div>
                     </>
                   )}
@@ -745,18 +743,16 @@ export default function EmployeeOrders() {
                       <p className="modal-media-section-label">Files</p>
                       <div className="media-file-list">
                         {files.map((att, i) => (
-                          <a
+                          <button
                             key={i}
-                            href={`${BASE}${att.url}`}
-                            download={att.originalName}
-                            target="_blank"
-                            rel="noreferrer"
+                            type="button"
+                            onClick={() => downloadMedia(att.url, att.originalName)}
                             className="media-file-row"
                           >
                             <LuFile size={15} />
                             <span className="media-file-name">{att.originalName}</span>
                             <LuDownload className="media-file-dl" size={13} />
-                          </a>
+                          </button>
                         ))}
                       </div>
                     </>

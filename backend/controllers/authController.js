@@ -144,7 +144,7 @@ const saveDashboardPrefs = async (req, res, next) => {
 const updateAvatar = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = req.file.url;
     const user = await User.findByIdAndUpdate(req.user.id, { avatar: avatarUrl }, { returnDocument: 'after' });
     res.json({ success: true, avatar: avatarUrl, user });
   } catch (err) {

@@ -5,7 +5,7 @@ import SettingsShell from '../../components/SettingsShell';
 import NotificationPrefs from '../../components/NotificationPrefs';
 import { LuUser, LuMapPin, LuBell, LuLock } from 'react-icons/lu';
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+import { mediaUrl } from '../../utils/media';
 
 export default function ClientSettings() {
   const { user, setSession } = useAuth();
@@ -35,7 +35,7 @@ export default function ClientSettings() {
   const [pwErr, setPwErr] = useState('');
   const [savingPw, setSavingPw] = useState(false);
 
-  const [avatarPreview, setAvatarPreview] = useState(user?.avatar ? `${API_BASE}${user.avatar}` : null);
+  const [avatarPreview, setAvatarPreview] = useState(mediaUrl(user?.avatar));
   const [avatarFile, setAvatarFile] = useState(null);
   const [savingAvatar, setSavingAvatar] = useState(false);
   const [avatarMsg, setAvatarMsg] = useState('');

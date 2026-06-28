@@ -17,26 +17,44 @@ const fmtDate = (iso) =>
 function CreateInvoiceModal({ onClose, onCreated }) {
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [invoicedByOrder, setInvoicedByOrder] = useState({});
   const [form, setForm] = useState({ orderId: '', amount: '', type: 'advance', notes: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getOrders({ limit: 200 })
-      .then((r) => setOrders(r.data.orders || []))
+    Promise.all([
+      getOrders({ limit: 200 }),
+      getInvoices({ limit: 1000 }),
+    ])
+      .then(([ordersRes, invoicesRes]) => {
+        setOrders(ordersRes.data.orders || []);
+        // Sum already-invoiced amount per order so we can cap to the remainder.
+        const sums = {};
+        (invoicesRes.data.invoices || []).forEach((inv) => {
+          const oid = (inv.orderId?._id || inv.orderId)?.toString();
+          if (oid) sums[oid] = (sums[oid] || 0) + inv.amount;
+        });
+        setInvoicedByOrder(sums);
+      })
       .catch(() => setError('Failed to load orders'))
       .finally(() => setOrdersLoading(false));
   }, []);
 
   const selectedOrder = orders.find((o) => o._id === form.orderId);
-  const maxAmount = selectedOrder?.totalPrice ?? '';
+  const alreadyInvoiced = selectedOrder ? (invoicedByOrder[selectedOrder._id] || 0) : 0;
+  const remaining = selectedOrder ? Math.max(selectedOrder.totalPrice - alreadyInvoiced, 0) : '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.orderId) { setError('Select an order'); return; }
     if (!form.amount || parseFloat(form.amount) <= 0) { setError('Enter a valid amount'); return; }
-    if (maxAmount && parseFloat(form.amount) > maxAmount) {
-      setError(`Amount cannot exceed order total (${eur.format(maxAmount)})`);
+    if (remaining !== '' && parseFloat(form.amount) > remaining) {
+      setError(
+        remaining <= 0
+          ? 'This order is already fully invoiced'
+          : `Amount cannot exceed the remaining billable amount (${eur.format(remaining)})`
+      );
       return;
     }
     setError('');
@@ -93,8 +111,13 @@ function CreateInvoiceModal({ onClose, onCreated }) {
               </select>
             )}
             {selectedOrder && (
-              <span style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: '.25rem' }}>
+              <span style={{ fontSize: '.78rem', color: 'var(--text-muted)', marginTop: '.25rem', display: 'block' }}>
                 Order total: {eur.format(selectedOrder.totalPrice)}
+                {alreadyInvoiced > 0 && <> · Already invoiced: {eur.format(alreadyInvoiced)}</>}
+                {' · '}
+                <strong style={{ color: remaining <= 0 ? 'var(--danger, #ef4444)' : 'var(--text)' }}>
+                  Remaining: {eur.format(remaining || 0)}
+                </strong>
               </span>
             )}
           </div>
@@ -122,7 +145,7 @@ function CreateInvoiceModal({ onClose, onCreated }) {
               placeholder="0.00"
               min="0.01"
               step="0.01"
-              max={maxAmount || undefined}
+              max={remaining || undefined}
               value={form.amount}
               onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
               disabled={submitting}

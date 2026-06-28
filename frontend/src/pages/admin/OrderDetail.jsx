@@ -4,6 +4,7 @@ import { getOrder, assignEmployee, adminSetDeliveryDate, adminResetStatus, force
 import { getEmployees } from '../../api/admin';
 import { useSocket } from '../../context/SocketContext';
 import ChatAttachments from '../../components/ChatAttachments';
+import { downloadMedia } from '../../utils/media';
 import ImageLightbox from '../../components/ImageLightbox';
 import ConversationEvent from '../../components/ConversationEvent';
 import MeetingMessage from '../../components/MeetingMessage';
@@ -542,9 +543,14 @@ export default function AdminOrderDetail() {
                       </span>
                     </div>
                     {att.url && (
-                      <a href={att.url} download className="odv-artifact-dl" title="Download">
+                      <button
+                        type="button"
+                        onClick={() => downloadMedia(att.url, att.originalName || att.filename)}
+                        className="odv-artifact-dl"
+                        title="Download"
+                      >
                         <LuDownload size={14} />
-                      </a>
+                      </button>
                     )}
                   </div>
                 ))}

@@ -10,6 +10,7 @@ import {
   LuLayoutDashboard, LuClipboardCheck, LuBell, LuSettings, LuLogOut, LuUser,
   LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu, LuLifeBuoy, LuUsers,
 } from 'react-icons/lu';
+import { mediaUrl } from '../utils/media';
 
 function mapOrders(r) {
   return (r.data.orders || r.data).map((o) => ({
@@ -25,7 +26,6 @@ function mapTickets(r) {
   }));
 }
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
 const NAV_ITEMS = [
   { path: '/employee',        label: 'Dashboard', Icon: LuLayoutDashboard, exact: true },
@@ -120,7 +120,7 @@ function EmployeeLayoutInner({ children }) {
     ? user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : 'E';
 
-  const avatarSrc = user?.avatar ? `${API_BASE}${user.avatar}` : null;
+  const avatarSrc = mediaUrl(user?.avatar);
 
   return (
     <div className="cl-shell">

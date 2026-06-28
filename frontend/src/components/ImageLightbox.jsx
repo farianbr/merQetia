@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import AuthedImage from './AuthedImage';
 
 export default function ImageLightbox({ src, name, onClose }) {
   useEffect(() => {
@@ -12,7 +13,7 @@ export default function ImageLightbox({ src, name, onClose }) {
       <button className="lightbox-close" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="Close lightbox">
         &#x2715;
       </button>
-      <img
+      <AuthedImage
         src={src}
         alt={name}
         className="lightbox-img"

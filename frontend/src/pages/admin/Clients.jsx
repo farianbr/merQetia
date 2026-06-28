@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { getClients } from '../../api/admin';
 import { LuSearch, LuUser, LuShoppingBag, LuExternalLink, LuUsers, LuActivity } from 'react-icons/lu';
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+import { mediaUrl } from '../../utils/media';
 
 function initials(name) {
   return (name || '?').split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -92,7 +92,7 @@ export default function AdminClients() {
       ) : (
         <div className="ac-grid">
           {filtered.map((c) => {
-            const avatarSrc = c.avatar ? `${API_BASE}${c.avatar}` : null;
+            const avatarSrc = mediaUrl(c.avatar);
             return (
               <div key={c._id} className="ac-card">
                 <div className="ac-card-top">

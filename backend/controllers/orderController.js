@@ -20,6 +20,8 @@ const {
   rescheduleOrderMeeting,
   cancelOrderMeeting,
 } = require('../services/orderService');
+const Order = require('../models/Order');
+const { getObject } = require('../utils/storage');
 
 /**
  * POST /api/orders
@@ -242,7 +244,8 @@ const postMessage = async (req, res, next) => {
     const attachments = files.map((f) => ({
       originalName: f.originalname,
       filename: f.filename,
-      url: `/uploads/orders/${req.params.id}/${f.filename}`,
+      // Authorized proxy path (no /api prefix; the SPA's axios base adds it).
+      url: `/orders/${req.params.id}/files/${f.filename}`,
       mimetype: f.mimetype,
       size: f.size,
     }));
@@ -270,7 +273,7 @@ const postUpdate = async (req, res, next) => {
     const attachments = files.map((f) => ({
       originalName: f.originalname,
       filename: f.filename,
-      url: `/uploads/orders/${req.params.id}/${f.filename}`,
+      url: `/orders/${req.params.id}/files/${f.filename}`,
       mimetype: f.mimetype,
       size: f.size,
     }));
@@ -284,6 +287,54 @@ const postUpdate = async (req, res, next) => {
 
     const order = await addUpdate(req.params.id, req.user.id, req.user.role, text, attachments, mentions);
     res.status(201).json({ success: true, updates: order.updates });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/orders/:id/files/:filename
+ * Stream a (private) order attachment to an authorized user. Access mirrors the
+ * order itself: admin, the owning client, or the assigned employee. Client-chat
+ * files are visible to all three; internal-update files are staff-only.
+ */
+const streamOrderFile = async (req, res, next) => {
+  try {
+    const { id, filename } = req.params;
+    const order = await Order.findById(id)
+      .select('clientId assignedEmployee messages.attachments updates.attachments');
+    if (!order) return res.status(404).json({ success: false, message: 'File not found' });
+
+    const { role, id: userId } = req.user;
+    const isAdmin = role === 'admin';
+    const isOwnerClient = role === 'client' && order.clientId?.toString() === userId.toString();
+    const isAssignedEmployee =
+      role === 'employee' && order.assignedEmployee?.toString() === userId.toString();
+    if (!isAdmin && !isOwnerClient && !isAssignedEmployee) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    // The requested file must belong to an attachment in a thread this user may
+    // read — prevents guessing keys for the staff-only updates thread, etc.
+    const allowed = new Set();
+    for (const m of order.messages || []) {
+      for (const a of m.attachments || []) allowed.add(a.filename);
+    }
+    if (isAdmin || isAssignedEmployee) {
+      for (const u of order.updates || []) {
+        for (const a of u.attachments || []) allowed.add(a.filename);
+      }
+    }
+    if (!allowed.has(filename)) {
+      return res.status(404).json({ success: false, message: 'File not found' });
+    }
+
+    const { stream, contentType, contentLength } = await getObject(`orders/${id}/${filename}`);
+    res.setHeader('Content-Type', contentType);
+    if (contentLength != null) res.setHeader('Content-Length', contentLength);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    stream.on('error', next);
+    stream.pipe(res);
   } catch (err) {
     next(err);
   }
@@ -371,5 +422,5 @@ const resetStatus = async (req, res, next) => {
   }
 };
 
-module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, getParticipants, setDeliveryDate, resetStatus, scheduleMeeting, rescheduleMeeting, cancelMeeting };
+module.exports = { placeOrder, getOrders, getOrder, assign, getMyAssignments, accept, reject, submitReview, confirm, changeRequest, forceComplete, postMessage, postUpdate, streamOrderFile, getParticipants, setDeliveryDate, resetStatus, scheduleMeeting, rescheduleMeeting, cancelMeeting };
 

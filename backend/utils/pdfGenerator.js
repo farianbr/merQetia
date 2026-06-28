@@ -9,11 +9,15 @@ const { generateInvoiceHTML } = require('./invoiceTemplate');
 const generatePDF = async (invoice) => {
   const html = generateInvoiceHTML(invoice);
 
+  // Prefer an explicitly configured browser (e.g. a custom CHROME_PATH locally),
+  // otherwise fall back to the Chromium that Puppeteer downloads on install.
+  // On Render this resolves to the project-local .cache (see .puppeteerrc.cjs).
+  const executablePath =
+    process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_PATH || undefined;
+
   const browser = await puppeteer.launch({
-    headless: 'new',
-    executablePath:
-      process.env.CHROME_PATH ||
-      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    headless: true,
+    ...(executablePath ? { executablePath } : {}),
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',

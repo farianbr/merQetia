@@ -12,7 +12,7 @@ import {
   LuSearch, LuArrowLeft, LuArrowRight, LuMoon, LuSun, LuMenu,
 } from 'react-icons/lu';
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+import { mediaUrl } from '../utils/media';
 
 function mapOrders(r) {
   return (r.data.orders || r.data).map((o) => ({
@@ -125,7 +125,7 @@ function ClientLayoutInner({ children }) {
     ? user.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : '?';
 
-  const avatarSrc = user?.avatar ? `${API_BASE}${user.avatar}` : null;
+  const avatarSrc = mediaUrl(user?.avatar);
 
   return (
     <div className="cl-shell">
@@ -152,13 +152,6 @@ function ClientLayoutInner({ children }) {
         </nav>
 
         <div className="cl-sidebar-footer">
-          <Link
-            to="/profile"
-            className={`cl-nav-item ${location.pathname === '/profile' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
-          >
-            <LuUser size={17} />
-            Profile
-          </Link>
           <Link
             to="/help"
             className={`cl-nav-item ${location.pathname === '/help' ? 'cl-nav-item--active' : 'cl-nav-item--muted'}`}
@@ -300,6 +293,14 @@ function ClientLayoutInner({ children }) {
                     </div>
                   </div>
                   <div className="cl-profile-dd-sep" />
+                  <Link
+                    to="/profile"
+                    className="cl-profile-dd-item"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    <LuUser size={15} />
+                    My Profile
+                  </Link>
                   <Link
                     to="/settings"
                     className="cl-profile-dd-item"

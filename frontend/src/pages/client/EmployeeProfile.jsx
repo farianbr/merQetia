@@ -5,7 +5,7 @@ import {
   LuCalendar, LuTag, LuShoppingBag, LuCircleCheck, LuClock, LuArrowLeft,
 } from 'react-icons/lu';
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+import { mediaUrl } from '../../utils/media';
 
 const STATUS_CONFIG = {
   pending:   { label: 'Pending',     bg: '#fef3c7', color: '#b45309' },
@@ -52,7 +52,7 @@ export default function ClientEmployeeProfile() {
   if (!data?.employee) return <div className="page"><p className="page-error">Profile not found.</p></div>;
 
   const { employee, orders = [] } = data;
-  const avatarSrc = employee.avatar ? `${API_BASE}${employee.avatar}` : null;
+  const avatarSrc = mediaUrl(employee.avatar);
   const departments = employee.departments || [];
 
   const totalOrders = orders.length;

@@ -317,6 +317,24 @@ const postMessage = async (channelId, user, { text = '', attachments = [], menti
   return message;
 };
 
+/**
+ * Authorize streaming of a channel attachment: the requester must be a channel
+ * member and the filename must belong to a message actually posted there.
+ */
+const assertChannelFileAccess = async (channelId, user, filename) => {
+  const channel = await loadChannel(channelId);
+  assertMember(channel, user);
+  const msg = await TeamMessage.findOne({
+    channel: channel._id,
+    'attachments.filename': filename,
+  }).select('_id').lean();
+  if (!msg) {
+    const err = new Error('File not found');
+    err.statusCode = 404;
+    throw err;
+  }
+};
+
 /* ── Meetings ──────────────────────────────────────────────────────────── */
 
 /** Resolve invitees from selected department names + individual user ids. */
@@ -480,6 +498,7 @@ module.exports = {
   visibleChannelsFor,
   getMessages,
   getMentionables,
+  assertChannelFileAccess,
   postMessage,
   scheduleMeeting,
   rescheduleMeeting,
